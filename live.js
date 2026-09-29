@@ -392,3 +392,16 @@ window.JC = {
 };
 
 document.addEventListener('DOMContentLoaded', () => JC.init());
+
+// ── PRODUCT LINK → product.html ───────────────────────────
+document.addEventListener('click', function(e) {
+  const a = e.target.closest('a[href]');
+  if (!a) return;
+  const path = new URL(a.href, location.href).pathname;
+  const match = path.match(/\/products\/([^/?#]+)/);
+  if (match) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.location.href = `./product.html?handle=${match[1]}`;
+  }
+}, true);
