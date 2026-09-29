@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+  const path = window.location.pathname;
+  const seg = path.split('/').filter(Boolean);
+  
+  // map known routes to local files
+  const routes = {
+    'collections/all': 'collections.html',
+    'collections/new-season-kits': 'new-season.html',
+    'collections/la-liga': 'laliga.html',
+    'collections/bundesliga': 'bundesliga.html',
+    'collections/serie-a': 'serie-a.html',
+    'collections/premier-league': 'premier-league.html',
+    'collections/ligue-1': 'ligue1.html',
+    'collections/international-jerseys': 'international.html',
+  };
+
+  const key = seg.slice(1).join('/'); // skip repo name
+  const mapped = routes[key];
+  
+  if (mapped) {
+    window.location.replace('/' + seg[0] + '/' + mapped);
+  } else {
+    window.location.replace('/Whiskey/index.html');
+  }
+</script>
+</head>
+<body>Redirecting...</body>
+</html>
