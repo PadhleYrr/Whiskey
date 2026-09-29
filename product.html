@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Loading... | JerseyCrest</title>
+<link rel="stylesheet" href="./assets/jerseycrest.shop_cdn_shop_t_11_assets_theme.css"/>
+<link rel="stylesheet" href="./assets/jerseycrest.shop_cdn_shop_t_11_assets_apps.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; }
+
+  .jc-loader {
+    display: flex; align-items: center; justify-content: center;
+    height: 60vh; font-size: 16px; color: #888;
+  }
+
+  .jc-product-wrap {
+    max-width: 1200px; margin: 0 auto; padding: 40px 20px;
+    display: flex; gap: 48px; flex-wrap: wrap;
+  }
+
+  /* ── IMAGES ── */
+  .jc-product-gallery { flex: 1; min-width: 300px; max-width: 560px; }
+  .jc-main-img-wrap {
+    width: 100%; aspect-ratio: 1;
+    border-radius: 12px; overflow: hidden; background: #f5f5f5;
+    position: relative;
+  }
+  .jc-main-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: opacity 0.3s;
+  }
+  .jc-thumb-strip {
+    display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .jc-thumb-strip img {
+    width: 72px; height: 72px; object-fit: cover;
+    border-radius: 8px; cursor: pointer;
+    border: 2px solid transparent; transition: border-color 0.2s;
+  }
+  .jc-thumb-strip img.active,
+  .jc-thumb-strip img:hover { border-color: #111; }
+
+  /* ── DETAILS ── */
+  .jc-product-details { flex: 1; min-width: 280px; padding-top: 8px; }
+  .jc-product-details .vendor {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1px; color: #888; margin-bottom: 8px;
+  }
+  .jc-product-details h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; line-height: 1.3; }
+  .jc-price-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .jc-price { font-size: 24px; font-weight: 700; }
+  .jc-compare { font-size: 18px; color: #aaa; text-decoration: line-through; }
+  .jc-discount {
+    background: #e00; color: #fff;
+    padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;
+  }
+
+  .jc-option-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .jc-option-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .jc-opt-btn {
+    padding: 8px 16px; border: 1px solid #ddd;
+    border-radius: 6px; cursor: pointer; background: #fff;
+    font-size: 14px; transition: all 0.2s;
+  }
+  .jc-opt-btn:hover { border-color: #111; }
+  .jc-opt-btn.active { background: #111; color: #fff; border-color: #111; }
+  .jc-opt-btn.out { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
+
+  .jc-atc {
+    width: 100%; padding: 16px; background: #111; color: #fff;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer; margin-bottom: 12px; transition: opacity 0.2s; letter-spacing: .5px;
+  }
+  .jc-atc:hover { opacity: 0.85; }
+  .jc-atc:disabled { background: #ccc; cursor: not-allowed; opacity: 1; }
+
+  .jc-wishlist {
+    width: 100%; padding: 14px; background: #fff; color: #111;
+    border: 1px solid #111; border-radius: 10px; font-size: 15px;
+    cursor: pointer; margin-bottom: 24px; transition: all 0.2s;
+  }
+  .jc-wishlist:hover { background: #f5f5f5; }
+
+  .jc-divider { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+
+  .jc-desc { font-size: 14px; line-height: 1.8; color: #444; }
+  .jc-desc h1,.jc-desc h2,.jc-desc h3 { font-size: 16px; margin: 12px 0 6px; }
+
+  .jc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .jc-tag {
+    padding: 4px 10px; background: #f5f5f5;
+    border-radius: 20px; font-size: 12px; color: #555;
+  }
+
+  .jc-stock-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 4px;
+    font-size: 12px; font-weight: 700; margin-bottom: 16px;
+  }
+  .jc-stock-badge.in { background: #e6f4ea; color: #1a7f37; }
+  .jc-stock-badge.out { background: #fce8e8; color: #c0392b; }
+
+  /* ── NAV ── */
+  .jc-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid #eee;
+    position: sticky; top: 0; background: #fff; z-index: 100;
+  }
+  .jc-nav a { text-decoration: none; color: #111; font-size: 14px; }
+  .jc-nav .back { display: flex; align-items: center; gap: 6px; }
+  .jc-nav .logo { font-size: 18px; font-weight: 700; }
+
+  /* ── RELATED ── */
+  .jc-related { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
+  .jc-related h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+  .jc-related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .jc-related-card {
+    cursor: pointer; border-radius: 10px; overflow: hidden;
+    border: 1px solid #eee; transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .jc-related-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+  .jc-related-card img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .jc-related-card p { padding: 8px 10px; font-size: 13px; font-weight: 500; }
+  .jc-related-card span { padding: 0 10px 10px; display: block; font-size: 13px; color: #555; }
+
+  .jc-toast { position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:12px 24px;border-radius:8px;opacity:0;transition:all .3s;z-index:99999;font-size:14px; }
+  .jc-toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+
+  @media (max-width: 600px) {
+    .jc-product-wrap { padding: 20px 16px; gap: 24px; }
+    .jc-product-details h1 { font-size: 20px; }
+    .jc-price { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="jc-nav">
+  <a href="javascript:history.back()" class="back">← Back</a>
+  <a href="./index.html" class="logo">JerseyCrest</a>
+  <a href="./index.html">🛒 <span id="jc-cart-badge">0</span></a>
+</nav>
+
+<div id="jc-loader" class="jc-loader">Loading product...</div>
+<div id="jc-content" style="display:none">
+  <div class="jc-product-wrap">
+
+    <!-- GALLERY -->
+    <div class="jc-product-gallery">
+      <div class="jc-main-img-wrap">
+        <img id="jc-main-img" src="" alt=""/>
+      </div>
+      <div class="jc-thumb-strip" id="jc-thumbs"></div>
+    </div>
+
+    <!-- DETAILS -->
+    <div class="jc-product-details">
+      <p class="vendor" id="jc-vendor"></p>
+      <h1 id="jc-title"></h1>
+      <div class="jc-price-row">
+        <span class="jc-price" id="jc-price"></span>
+        <span class="jc-compare" id="jc-compare" style="display:none"></span>
+        <span class="jc-discount" id="jc-discount" style="display:none"></span>
+      </div>
+      <div id="jc-stock-badge"></div>
+      <div id="jc-options"></div>
+      <button class="jc-atc" id="jc-atc-btn" onclick="addToCart()">Add to Cart</button>
+      <button class="jc-wishlist">♡ Add to Wishlist</button>
+      <hr class="jc-divider"/>
+      <div class="jc-desc" id="jc-desc"></div>
+      <div class="jc-tags" id="jc-tags"></div>
+    </div>
+
+  </div>
+
+  <!-- RELATED -->
+  <div class="jc-related">
+    <h2>You May Also Like</h2>
+    <div class="jc-related-grid" id="jc-related"></div>
+  </div>
+</div>
+
+<script>
+const SHOPIFY = 'https://jerseycrest.shop';
+const MARGIN = 1.30;
+const handle = new URLSearchParams(window.location.search).get('handle');
+let currentProduct = null;
+let selectedVariant = null;
+let cartItems = JSON.parse(localStorage.getItem('jc_cart') || '[]');
+
+function inr(n) {
+  return '₹' + parseFloat(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+}
+function yourPrice(p) {
+  return Math.round(parseFloat(p) * MARGIN * 100) / 100;
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'jc-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function updateCartBadge() {
+  const b = document.getElementById('jc-cart-badge');
+  if (b) b.textContent = cartItems.reduce((s,i) => s + i.qty, 0);
+}
+
+function setMainImg(src, alt) {
+  const img = document.getElementById('jc-main-img');
+  img.style.opacity = 0;
+  setTimeout(() => { img.src = src; img.alt = alt; img.style.opacity = 1; }, 150);
+}
+
+function renderProduct(p) {
+  document.title = `${p.title} | JerseyCrest`;
+  currentProduct = p;
+
+  const variants = p.variants || [];
+  selectedVariant = variants[0];
+
+  // vendor
+  document.getElementById('jc-vendor').textContent = p.vendor || '';
+
+  // title
+  document.getElementById('jc-title').textContent = p.title;
+
+  // main image
+  const firstImg = p.images?.[0];
+  if (firstImg) {
+    document.getElementById('jc-main-img').src = firstImg.src;
+    document.getElementById('jc-main-img').alt = firstImg.alt || p.title;
+  }
+
+  // thumbnails
+  const thumbs = document.getElementById('jc-thumbs');
+  thumbs.innerHTML = (p.images || []).slice(0, 8).map((img, i) => `
+    <img src="${img.src}" alt="${img.alt || p.title}" class="${i === 0 ? 'active' : ''}"
+      onclick="setMainImg('${img.src}','${img.alt || p.title}');
+      document.querySelectorAll('.jc-thumb-strip img').forEach(t=>t.classList.remove('active'));
+      this.classList.add('active')"/>
+  `).join('');
+
+  // price
+  updatePrice(selectedVariant);
+
+  // stock
+  const stockEl = document.getElementById('jc-stock-badge');
+  const inStock = variants.some(v => v.available);
+  stockEl.innerHTML = inStock
+    ? '<span class="jc-stock-badge in">✓ In Stock</span>'
+    : '<span class="jc-stock-badge out">✗ Sold Out</span>';
+
+  // options
+  renderOptions(p, variants);
+
+  // description
+  document.getElementById('jc-desc').innerHTML = p.body_html || '';
+
+  // tags
+  const tagsEl = document.getElementById('jc-tags');
+  tagsEl.innerHTML = (p.tags || []).map(t => `<span class="jc-tag">${t}</span>`).join('');
+
+  // show content
+  document.getElementById('jc-loader').style.display = 'none';
+  document.getElementById('jc-content').style.display = 'block';
+}
+
+function updatePrice(variant) {
+  if (!variant) return;
+  const yours = yourPrice(variant.price);
+  document.getElementById('jc-price').textContent = inr(yours);
+
+  const compareEl = document.getElementById('jc-compare');
+  const discountEl = document.getElementById('jc-discount');
+
+  if (variant.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price)) {
+    compareEl.textContent = inr(variant.compare_at_price);
+    compareEl.style.display = 'inline';
+    const pct = Math.round((1 - parseFloat(variant.price) / parseFloat(variant.compare_at_price)) * 100);
+    discountEl.textContent = `-${pct}%`;
+    discountEl.style.display = 'inline';
+  } else {
+    compareEl.style.display = 'none';
+    discountEl.style.display = 'none';
+  }
+
+  const btn = document.getElementById('jc-atc-btn');
+  if (!variant.available) {
+    btn.textContent = 'Sold Out';
+    btn.disabled = true;
+  } else {
+    btn.textContent = 'Add to Cart';
+    btn.disabled = false;
+  }
+}
+
+function renderOptions(p, variants) {
+  const options = p.options || [];
+  const container = document.getElementById('jc-options');
+  container.innerHTML = '';
+
+  options.forEach((opt, optIdx) => {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '20px';
+
+    const label = document.createElement('p');
+    label.className = 'jc-option-label';
+    label.textContent = opt.name;
+    wrap.appendChild(label);
+
+    const btns = document.createElement('div');
+    btns.className = 'jc-option-btns';
+
+    opt.values.forEach((val, valIdx) => {
+      const btn = document.createElement('button');
+      btn.className = 'jc-opt-btn' + (valIdx === 0 ? ' active' : '');
+      btn.textContent = val;
+
+      // check if this value has any in-stock variant
+      const hasStock = variants.some(v => {
+        const optVal = v[`option${optIdx + 1}`];
+        return optVal === val && v.available;
+      });
+      if (!hasStock) btn.classList.add('out');
+
+      btn.onclick = () => {
+        wrap.querySelectorAll('.jc-opt-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // find matching variant
+        const selected = {};
+        container.querySelectorAll('.jc-option-btns').forEach((row, i) => {
+          const active = row.querySelector('.jc-opt-btn.active');
+          if (active) selected[`option${i + 1}`] = active.textContent;
+        });
+
+        const match = variants.find(v =>
+          Object.entries(selected).every(([k, val]) => v[k] === val)
+        );
+        if (match) {
+          selectedVariant = match;
+          updatePrice(match);
+
+          // swap image if variant has one
+          if (match.image_id) {
+            const img = p.images?.find(i => i.id === match.image_id);
+            if (img) setMainImg(img.src, img.alt || p.title);
+          }
+        }
+      };
+
+      btns.appendChild(btn);
+    });
+
+    wrap.appendChild(btns);
+    container.appendChild(wrap);
+  });
+}
+
+function addToCart() {
+  if (!selectedVariant || !selectedVariant.available) return;
+  const existing = cartItems.find(i => i.variant_id === selectedVariant.id);
+  if (existing) existing.qty++;
+  else cartItems.push({
+    variant_id: selectedVariant.id,
+    product_id: currentProduct.id,
+    handle: currentProduct.handle,
+    title: currentProduct.title,
+    variant_title: selectedVariant.title,
+    price: yourPrice(selectedVariant.price),
+    image: currentProduct.images?.[0]?.src || '',
+    qty: 1,
+  });
+  localStorage.setItem('jc_cart', JSON.stringify(cartItems));
+  updateCartBadge();
+  toast(`${currentProduct.title} added to cart ✓`);
+}
+
+async function loadRelated(p) {
+  const tag = p.tags?.[0];
+  if (!tag) return;
+  try {
+    const res = await fetch(`${SHOPIFY}/collections/${p.product_type?.toLowerCase().replace(/\s+/g,'-') || 'all'}/products.json?limit=8`);
+    const data = await res.json();
+    const related = (data.products || []).filter(r => r.handle !== p.handle).slice(0, 6);
+    const grid = document.getElementById('jc-related');
+    grid.innerHTML = related.map(r => `
+      <div class="jc-related-card" onclick="window.location.href='./product.html?handle=${r.handle}'">
+        <img src="${r.images?.[0]?.src || ''}" alt="${r.title}" loading="lazy"/>
+        <p>${r.title}</p>
+        <span>${inr(yourPrice(r.variants?.[0]?.price || 0))}</span>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function init() {
+  if (!handle) {
+    window.location.href = './index.html';
+    return;
+  }
+  try {
+    const res = await fetch(`${SHOPIFY}/products/${handle}.json`);
+    const data = await res.json();
+    const p = data.product;
+    if (!p) throw new Error('not found');
+    renderProduct(p);
+    loadRelated(p);
+    updateCartBadge();
+  } catch(e) {
+    document.getElementById('jc-loader').textContent = 'Product not found.';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
