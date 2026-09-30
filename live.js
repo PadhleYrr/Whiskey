@@ -132,14 +132,14 @@ async function initCollectionsPage() {
       (p.collections || []).some(c => c.handle === col)
     );
     renderProductGrid(filtered, document.querySelector(
-      '.product-grid, .collection-grid, ul.grid, #product-grid, main ul, .grid'
+      '#ProductGridContainer motion-list, #ProductGridContainer, motion-list.card-grid'
     ));
     return;
   }
 
   // DEFAULT — show collection cards grid
   const container = document.querySelector(
-    '.product-grid, .collection-grid, ul.grid, #product-grid, main ul, .grid, main'
+    '#ProductGridContainer motion-list, #ProductGridContainer, motion-list.card-grid'
   );
   if (!container || !data.collections?.length) return;
 
@@ -167,35 +167,45 @@ async function initCollectionsPage() {
 /* ── 4. PRODUCT GRID RENDERER ── */
 function renderProductGrid(products, container) {
   if (!container) return;
+  // find the motion-list inside ProductGridContainer if we got the wrapper
+  const grid = container.querySelector('motion-list') || container;
 
   if (!products.length) {
-    container.innerHTML = `<p style="padding:2rem;color:#666;grid-column:1/-1;text-align:center">No products found.</p>`;
+    grid.innerHTML = `<p style="padding:2rem;color:#666;grid-column:1/-1;text-align:center">No products found.</p>`;
     return;
   }
 
-  container.innerHTML = products.map(p => {
+  grid.innerHTML = products.map(p => {
     const img    = p.images?.[0] || '';
     const price  = p.variants?.[0]?.price || p.price || '0';
+    const compare = p.variants?.[0]?.compare_at_price || null;
     const badge  = !p.any_in_stock
-      ? `<span style="position:absolute;top:8px;left:8px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:2px">Sold Out</span>`
-      : '';
+      ? `<div class="badges z-2 absolute grid gap-3 pointer-events-none"><span class="badge flex items-center gap-1d5 font-medium leading-none rounded-full" style="background:#333;color:#fff;padding:4px 8px;font-size:11px">Sold Out</span></div>`
+      : (compare && parseFloat(compare) > parseFloat(price)
+        ? `<div class="badges z-2 absolute grid gap-3 pointer-events-none"><span class="badge badge--onsale flex items-center gap-1d5 font-medium leading-none rounded-full">Sale</span></div>`
+        : '');
     return `
-      <li class="grid__item" style="list-style:none">
-        <div style="position:relative">
+      <div class="card product-card product-card--standard flex flex-col leading-none relative">
+        <div class="product-card__media relative h-auto">
           ${badge}
-          <a href="./product.html?handle=${p.handle}" style="text-decoration:none;color:inherit;display:block">
-            <div style="aspect-ratio:1;overflow:hidden;border-radius:6px;background:#f5f5f5">
-              <img src="${img}" alt="${p.title}"
-                style="width:100%;height:100%;object-fit:cover" loading="lazy"
-                onerror="this.src=''"/>
-            </div>
-            <div style="padding:8px 4px">
-              <p style="font-size:13px;margin:4px 0;font-weight:500;line-height:1.3">${p.title}</p>
-              <p style="font-size:13px;color:#c00;font-weight:600;margin:2px 0">Rs. ${parseFloat(price).toFixed(2)}</p>
-            </div>
+          <a class="block relative media media--square" href="./product.html?handle=${p.handle}">
+            <img src="${img}" alt="${p.title}"
+              style="width:100%;height:100%;object-fit:cover"
+              loading="lazy"
+              onerror="this.src=''"/>
           </a>
         </div>
-      </li>`;
+        <div class="product-card__content grow flex flex-col justify-start text-center w-full">
+          <div class="product-card__details flex flex-col items-baseline gap-2 w-full">
+            <a class="product-card__title reversed-link text-base-xl font-medium leading-tight"
+               href="./product.html?handle=${p.handle}">${p.title}</a>
+            <div class="price">
+              <span class="price__current">Rs. ${parseFloat(price).toFixed(2)}</span>
+              ${compare ? `<s class="price__compare" style="color:#999;font-size:12px;margin-left:6px">Rs. ${parseFloat(compare).toFixed(2)}</s>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
   }).join('');
 }
 
@@ -222,7 +232,7 @@ async function initLeaguePage() {
   );
 
   const container = document.querySelector(
-    '.product-grid, ul.grid, #product-grid, .collection-grid, main ul'
+    '#ProductGridContainer motion-list, #ProductGridContainer, motion-list.card-grid'
   );
   renderProductGrid(filtered, container);
 }
