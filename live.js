@@ -118,16 +118,13 @@ async function loadProducts() {
 /* ── 3. COLLECTIONS PAGE ── show collection cards OR filtered products ── */
 async function initCollectionsPage() {
   const params = new URLSearchParams(window.location.search);
-  const col    = params.get('collection'); // e.g. "real-madrid-jerseys"
-
-  const data = await loadData();
+  const col    = params.get('collection');
+  const data   = await loadData();
 
   if (col) {
-    // FILTERED VIEW — show products for this collection
     const title = col.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const h1 = document.querySelector('h1, .collection-hero__title, .page-title');
     if (h1) h1.textContent = title;
-
     const filtered = data.products.filter(p =>
       (p.collections || []).some(c => c.handle === col)
     );
@@ -137,31 +134,41 @@ async function initCollectionsPage() {
     return;
   }
 
-  // DEFAULT — show collection cards grid
   const container = document.querySelector(
     '#ProductGridContainer motion-list, #ProductGridContainer, motion-list.card-grid'
   );
-  if (!container || !data.collections?.length) return;
+  if (!container) return;
 
-  // exclude generic collections
-  const skip = ['frontpage', 'all-products'];
-  const cols = data.collections.filter(c => !skip.includes(c.handle));
+  container.innerHTML = '<p style="padding:2rem;text-align:center;color:#999">Loading…</p>';
 
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
-      ${cols.map(c => `
-        <a href="./collections.html?collection=${c.handle}"
-           style="text-decoration:none;color:inherit;background:#f5f5f5;border-radius:8px;overflow:hidden;display:block">
-          ${c.image
-            ? `<img src="${c.image}" alt="${c.title}"
-                style="width:100%;aspect-ratio:1;object-fit:cover"/>`
-            : `<div style="width:100%;aspect-ratio:1;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#999">${c.title}</div>`
-          }
-          <div style="padding:12px;text-align:center">
-            <p style="font-size:14px;font-weight:700;margin:0;text-transform:uppercase;line-height:1.3">${c.title}</p>
-          </div>
-        </a>`).join('')}
-    </div>`;
+  const skip = new Set(['frontpage','all-products']);
+  let cols = [];
+  try {
+    const r = await fetch('https://jerseycrest.shop/collections.json?limit=250');
+    cols = (await r.json()).collections.filter(c => !skip.has(c.handle));
+  } catch(e) { container.innerHTML = ''; return; }
+
+  // fetch first product image per collection in parallel
+  const imgs = await Promise.all(cols.map(async c => {
+    try {
+      const r = await fetch('https://jerseycrest.shop/collections/' + c.handle + '/products.json?limit=1');
+      const src = (await r.json()).products?.[0]?.images?.[0]?.src || '';
+      return { h: c.handle, src: src.startsWith('//') ? 'https:' + src : src };
+    } catch(e) { return { h: c.handle, src: '' }; }
+  }));
+  const imgMap = {};
+  imgs.forEach(i => { if (i.src) imgMap[i.h] = i.src; });
+
+  container.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">' +
+    cols.map(c => {
+      const src = imgMap[c.handle] || '';
+      return '<a href="./collections.html?collection=' + c.handle + '" style="text-decoration:none;color:inherit;background:#f5f5f5;border-radius:8px;overflow:hidden;display:block">' +
+        (src ? '<img src="' + src + '" alt="' + c.title + '" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover"/>'
+             : '<div style="width:100%;aspect-ratio:1;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#999">' + c.title + '</div>') +
+        '<div style="padding:10px;text-align:center"><p style="font-size:13px;font-weight:700;margin:0;text-transform:uppercase;line-height:1.3">' + c.title + '</p></div>' +
+        '</a>';
+    }).join('') + '</div>';
 }
 
 /* ── 4. PRODUCT GRID RENDERER ── */
