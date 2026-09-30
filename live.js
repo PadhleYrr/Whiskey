@@ -409,3 +409,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   loadProducts(); // preload silently
 });
+
+/* ── CONTACT + REVIEWS PATCH ── */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href]');
+  if (!a) return;
+  const href = a.getAttribute('href') || '';
+  if (href.includes('/pages/contact') || href.includes('contact-us')) {
+    e.preventDefault();
+    window.location.href = './contact.html';
+  }
+  if (href.includes('/pages/customer-reviews') || href.includes('customer-reviews')) {
+    e.preventDefault();
+    window.location.href = './reviews.html';
+  }
+}, true);
