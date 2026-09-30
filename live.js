@@ -58,19 +58,33 @@ document.addEventListener('click', e => {
     const colSlug = path.split('/collections/')[1]?.split(/[?#/]/)[0] || '';
 
     const localMap = {
-      'premier-league':        './premier-league.html',
-      'premier-league-26-27':  './premier-league.html',
-      'la-liga':               './laliga.html',
-      'la-liga-2026':          './laliga.html',
-      'bundesliga':            './bundesliga.html',
-      'serie-a':               './serie-a.html',
-      'ligue-1':               './ligue1.html',
-      'international-jerseys': './international.html',
-      'new-season-kits':       './new-season.html',
-      'all':                   './collections.html',
-      'all-products':          './collections.html',
-      '':                      './collections.html',
-    };
+    'premier-league':            './premier-league.html',
+    'premier-league-26-27':      './premier-league.html',
+    'la-liga':                   './laliga.html',
+    'la-liga-2026':              './laliga.html',
+    'bundesliga':                './bundesliga.html',
+    'serie-a':                   './serie-a.html',
+    'ligue-1':                   './ligue1.html',
+    'ligue1':                    './ligue1.html',
+    'international-jerseys':     './international.html',
+    'new-season-kits':           './new-season.html',
+    'all':                       './collections.html',
+    'all-products':              './collections.html',
+    '':                          './collections.html',
+    'full-sleeves-jerseys':      './collections.html?collection=full-sleeves-jerseys',
+    'half-sleeve-jerseys':       './collections.html?collection=half-sleeve-jerseys',
+    'retro-jerseys':             './collections.html?collection=retro-jerseys',
+    'best-sellers':              './collections.html?collection=best-sellers',
+    'special-edition':           './collections.html?collection=special-edition',
+    '2026-world-cup':            './collections.html?collection=2026-world-cup',
+    'ac-milan-jerseys':          './collections.html?collection=ac-milan-jerseys',
+    'argentina-jerseys':         './collections.html?collection=argentina-jerseys',
+    'fc-barcelona-jerseys':      './collections.html?collection=fc-barcelona-jerseys',
+    'germany-jerseys':           './collections.html?collection=germany-jerseys',
+    'manchester-united-jerseys': './collections.html?collection=manchester-united-jerseys',
+    'real-madrid-jerseys':       './collections.html?collection=real-madrid-jerseys',
+    'f1-jerseys':                './collections.html?collection=f1-jerseys',
+  };
 
     if (localMap[colSlug]) {
       window.location.href = localMap[colSlug];
