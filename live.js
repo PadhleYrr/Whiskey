@@ -1,4 +1,4 @@
-/* ─── JerseyCrest Live Router ─── */
+/* ─── UnrealSportsHub Live Router ─── */
 const BASE = 'https://jerseycrest.shop';
 
 /* ── 1. LINK REWRITER ── */
