@@ -736,3 +736,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     : run();
   window.addEventListener('load', run);
 })();
+
+/* ── COLLECTION IMAGES FROM HOME PAGE (local assets) ── */
+(function fixCollectionImagesFromHome() {
+  async function run() {
+    try {
+      const r   = await fetch('./index.html');
+      const html = await r.text();
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+      const imgMap = {};
+      doc.querySelectorAll('a[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!handle || !img) return;
+        const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+        if (src && !src.includes('no-image') && !src.includes('placeholder') &&
+            !src.toLowerCase().includes('jc') && handle !== 'all' && handle !== '') {
+          imgMap[handle] = src;
+        }
+      });
+
+      if (!Object.keys(imgMap).length) return;
+
+      document.querySelectorAll('a[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!handle || !img || !imgMap[handle]) return;
+        img.setAttribute('src', imgMap[handle]);
+        img.style.objectFit  = 'cover';
+        img.style.width      = '100%';
+        img.style.height     = '100%';
+      });
+
+    } catch(e) { console.warn('collectionImagesFromHome:', e); }
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', run)
+    : run();
+  window.addEventListener('load', run);
+})();
