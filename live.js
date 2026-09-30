@@ -779,3 +779,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     : run();
   window.addEventListener('load', run);
 })();
+
+/* ── COLLECTION IMAGES V2 (media-card__link, no bad filter) ── */
+(function fixCollectionImagesV2() {
+  async function run() {
+    try {
+      const r    = await fetch('./index.html');
+      const html = await r.text();
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+      const imgMap = {};
+      doc.querySelectorAll('a.media-card__link[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!handle || !img) return;
+        let src = img.getAttribute('src') || '';
+        if (!src) return;
+        if (src.startsWith('//')) src = 'https:' + src;
+        imgMap[handle] = src;
+      });
+
+      if (!Object.keys(imgMap).length) return;
+
+      document.querySelectorAll('a[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!handle || !img || !imgMap[handle]) return;
+        img.setAttribute('src', imgMap[handle]);
+        img.style.objectFit = 'cover';
+        img.style.width     = '100%';
+        img.style.height    = '100%';
+      });
+
+    } catch(e) { console.warn('collectionImagesV2:', e); }
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', run)
+    : run();
+  window.addEventListener('load', run);
+})();
