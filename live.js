@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const src =
           (handle && byHandle[handle]) ||
           byTitle[titleKey];
-        if (src && broken) {
+        if (src) {
           img.setAttribute('src', src);
           img.style.objectFit = 'cover';
           img.style.width     = '100%';
@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const src =
           (handle && byHandle[handle]) ||
           byTitle[titleKey];
-        if (src && broken) {
+        if (src) {
           img.setAttribute('src', src);
           img.style.objectFit = 'cover';
           img.style.width     = '100%';
