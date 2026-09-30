@@ -446,3 +446,293 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   loadData();
 });
+
+/* ── FEATURED COLLECTION TABS FIX ── */
+(function initFeaturedTabs() {
+  const TAB_MAP = {
+    'NEW SEASON KITS':      'new-season-kits',
+    'Premier League 26/27': 'premier-league-26-27',
+    'La Liga 26/27':        'la-liga-2026',
+    'RETRO JERSEYS':        'retro-jerseys',
+    'BEST SELLERS':         'best-sellers',
+    'SPECIAL EDITION':      'special-edition',
+    '2026 WORLD CUP':       '2026-world-cup',
+    'HALF SLEEVE JERSEYS':  'half-sleeve-jerseys',
+    'FULL SLEEVES JERSEYS': 'full-sleeves-jerseys',
+    'Argentina Jerseys':    'argentina-jerseys',
+    'AC Milan Jerseys':     'ac-milan-jerseys',
+    'Real Madrid Jerseys':  'real-madrid-jerseys',
+    'FC Barcelona Jerseys': 'fc-barcelona-jerseys',
+  };
+
+  function makeCard(p) {
+    const img = p.images?.[0]?.src || '';
+    const price = p.variants?.[0]?.price || '';
+    const compare = p.variants?.[0]?.compare_at_price;
+    const pct = (compare && price && compare > price)
+      ? Math.round((1 - price / compare) * 100) : 0;
+    return `
+      <a href="./product.html?handle=${p.handle}"
+         style="position:relative;text-decoration:none;color:inherit;display:flex;
+                flex-direction:column;background:#fff;border-radius:8px;
+                overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        ${pct > 0 ? `<span style="position:absolute;top:0;left:0;background:#e00;
+          color:#fff;font-size:10px;font-weight:700;padding:2px 7px;
+          border-radius:0 0 6px 0;z-index:1">Save ${pct}%</span>` : ''}
+        <img src="${img}" alt="${p.title}" loading="lazy"
+             style="width:100%;aspect-ratio:3/4;object-fit:cover">
+        <div style="padding:8px 6px">
+          <div style="font-size:12px;font-weight:600;line-height:1.3;
+                      margin-bottom:4px">${p.title}</div>
+          <span style="font-weight:700;font-size:13px">Rs. ${price}</span>
+          ${compare ? `<span style="text-decoration:line-through;color:#999;
+            font-size:11px;margin-left:5px">Rs. ${compare}</span>` : ''}
+        </div>
+      </a>`;
+  }
+
+  async function loadTab(btn) {
+    const tabText = btn.querySelector('.btn-text')?.textContent?.trim();
+    const handle  = TAB_MAP[tabText];
+    const panelId = btn.getAttribute('aria-controls');
+    const panel   = panelId && document.getElementById(panelId);
+    if (!panel || !handle) return;
+
+    panel.innerHTML = '<div style="padding:3rem;text-align:center;color:#999">Loading…</div>';
+    panel.removeAttribute('hidden');
+    panel.style.display = '';
+
+    try {
+      const r = await fetch(
+        `https://jerseycrest.shop/collections/${handle}/products.json?limit=8`
+      );
+      const { products } = await r.json();
+      if (!products?.length) {
+        panel.innerHTML = '<p style="padding:2rem;text-align:center">No products</p>';
+        return;
+      }
+      panel.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;
+                    gap:12px;padding:12px;position:relative">
+          ${products.map(makeCard).join('')}
+        </div>
+        <div style="text-align:center;padding:12px 0 8px">
+          <a href="./collections.html?collection=${handle}"
+             style="display:inline-block;padding:10px 32px;background:#000;
+                    color:#fff;border-radius:24px;font-weight:600;
+                    text-decoration:none;font-size:14px">View All</a>
+        </div>`;
+    } catch(e) {
+      panel.innerHTML =
+        '<p style="padding:2rem;text-align:center;color:#c00">Failed to load</p>';
+    }
+  }
+
+  function clearNullPanels() {
+    document.querySelectorAll('[id^="TabPanel-"]').forEach(panel => {
+      if (panel.textContent.trim() === 'null')
+        panel.innerHTML = '';
+    });
+  }
+
+  function attachTabs() {
+    clearNullPanels();
+    document.querySelectorAll('.tab__item').forEach(btn => {
+      if (btn.dataset.jcBound) return;
+      btn.dataset.jcBound = '1';
+      btn.addEventListener('click', () => loadTab(btn));
+    });
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', attachTabs)
+    : attachTabs();
+})();
+
+/* ── COLLECTION CARD IMAGE LOADER ── */
+(function initCollectionImages() {
+  async function run() {
+    try {
+      const r = await fetch('https://jerseycrest.shop/collections.json?limit=250');
+      const { collections } = await r.json();
+      const byHandle = {}, byTitle = {};
+      collections.forEach(c => {
+        if (c.image?.src) {
+          byHandle[c.handle] = c.image.src;
+          byTitle[c.title.toLowerCase().trim()] = c.image.src;
+        }
+      });
+
+      document.querySelectorAll('a[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!img) return;
+        const broken =
+          !img.getAttribute('src') ||
+          img.getAttribute('src').startsWith('data:') ||
+          img.naturalWidth === 0;
+        const titleKey = link.textContent.trim().toLowerCase();
+        const src =
+          (handle && byHandle[handle]) ||
+          byTitle[titleKey];
+        if (src && broken) {
+          img.setAttribute('src', src);
+          img.style.objectFit = 'cover';
+          img.style.width     = '100%';
+          img.style.height    = '100%';
+        }
+      });
+    } catch(e) { console.warn('collection images:', e); }
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', run)
+    : run();
+  window.addEventListener('load', run);
+})();
+
+/* ── FEATURED COLLECTION TABS FIX ── */
+(function initFeaturedTabs() {
+  const TAB_MAP = {
+    'NEW SEASON KITS':      'new-season-kits',
+    'Premier League 26/27': 'premier-league-26-27',
+    'La Liga 26/27':        'la-liga-2026',
+    'RETRO JERSEYS':        'retro-jerseys',
+    'BEST SELLERS':         'best-sellers',
+    'SPECIAL EDITION':      'special-edition',
+    '2026 WORLD CUP':       '2026-world-cup',
+    'HALF SLEEVE JERSEYS':  'half-sleeve-jerseys',
+    'FULL SLEEVES JERSEYS': 'full-sleeves-jerseys',
+    'Argentina Jerseys':    'argentina-jerseys',
+    'AC Milan Jerseys':     'ac-milan-jerseys',
+    'Real Madrid Jerseys':  'real-madrid-jerseys',
+    'FC Barcelona Jerseys': 'fc-barcelona-jerseys',
+  };
+
+  function makeCard(p) {
+    const img = p.images?.[0]?.src || '';
+    const price = p.variants?.[0]?.price || '';
+    const compare = p.variants?.[0]?.compare_at_price;
+    const pct = (compare && price && compare > price)
+      ? Math.round((1 - price / compare) * 100) : 0;
+    return `
+      <a href="./product.html?handle=${p.handle}"
+         style="position:relative;text-decoration:none;color:inherit;display:flex;
+                flex-direction:column;background:#fff;border-radius:8px;
+                overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+        ${pct > 0 ? `<span style="position:absolute;top:0;left:0;background:#e00;
+          color:#fff;font-size:10px;font-weight:700;padding:2px 7px;
+          border-radius:0 0 6px 0;z-index:1">Save ${pct}%</span>` : ''}
+        <img src="${img}" alt="${p.title}" loading="lazy"
+             style="width:100%;aspect-ratio:3/4;object-fit:cover">
+        <div style="padding:8px 6px">
+          <div style="font-size:12px;font-weight:600;line-height:1.3;
+                      margin-bottom:4px">${p.title}</div>
+          <span style="font-weight:700;font-size:13px">Rs. ${price}</span>
+          ${compare ? `<span style="text-decoration:line-through;color:#999;
+            font-size:11px;margin-left:5px">Rs. ${compare}</span>` : ''}
+        </div>
+      </a>`;
+  }
+
+  async function loadTab(btn) {
+    const tabText = btn.querySelector('.btn-text')?.textContent?.trim();
+    const handle  = TAB_MAP[tabText];
+    const panelId = btn.getAttribute('aria-controls');
+    const panel   = panelId && document.getElementById(panelId);
+    if (!panel || !handle) return;
+
+    panel.innerHTML = '<div style="padding:3rem;text-align:center;color:#999">Loading…</div>';
+    panel.removeAttribute('hidden');
+    panel.style.display = '';
+
+    try {
+      const r = await fetch(
+        `https://jerseycrest.shop/collections/${handle}/products.json?limit=8`
+      );
+      const { products } = await r.json();
+      if (!products?.length) {
+        panel.innerHTML = '<p style="padding:2rem;text-align:center">No products</p>';
+        return;
+      }
+      panel.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;
+                    gap:12px;padding:12px;position:relative">
+          ${products.map(makeCard).join('')}
+        </div>
+        <div style="text-align:center;padding:12px 0 8px">
+          <a href="./collections.html?collection=${handle}"
+             style="display:inline-block;padding:10px 32px;background:#000;
+                    color:#fff;border-radius:24px;font-weight:600;
+                    text-decoration:none;font-size:14px">View All</a>
+        </div>`;
+    } catch(e) {
+      panel.innerHTML =
+        '<p style="padding:2rem;text-align:center;color:#c00">Failed to load</p>';
+    }
+  }
+
+  function clearNullPanels() {
+    document.querySelectorAll('[id^="TabPanel-"]').forEach(panel => {
+      if (panel.textContent.trim() === 'null')
+        panel.innerHTML = '';
+    });
+  }
+
+  function attachTabs() {
+    clearNullPanels();
+    document.querySelectorAll('.tab__item').forEach(btn => {
+      if (btn.dataset.jcBound) return;
+      btn.dataset.jcBound = '1';
+      btn.addEventListener('click', () => loadTab(btn));
+    });
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', attachTabs)
+    : attachTabs();
+})();
+
+/* ── COLLECTION CARD IMAGE LOADER ── */
+(function initCollectionImages() {
+  async function run() {
+    try {
+      const r = await fetch('https://jerseycrest.shop/collections.json?limit=250');
+      const { collections } = await r.json();
+      const byHandle = {}, byTitle = {};
+      collections.forEach(c => {
+        if (c.image?.src) {
+          byHandle[c.handle] = c.image.src;
+          byTitle[c.title.toLowerCase().trim()] = c.image.src;
+        }
+      });
+
+      document.querySelectorAll('a[href*="/collections/"]').forEach(link => {
+        const href   = link.getAttribute('href') || '';
+        const handle = (href.match(/\/collections\/([^/?#]+)/) || [])[1];
+        const img    = link.querySelector('img');
+        if (!img) return;
+        const broken =
+          !img.getAttribute('src') ||
+          img.getAttribute('src').startsWith('data:') ||
+          img.naturalWidth === 0;
+        const titleKey = link.textContent.trim().toLowerCase();
+        const src =
+          (handle && byHandle[handle]) ||
+          byTitle[titleKey];
+        if (src && broken) {
+          img.setAttribute('src', src);
+          img.style.objectFit = 'cover';
+          img.style.width     = '100%';
+          img.style.height    = '100%';
+        }
+      });
+    } catch(e) { console.warn('collection images:', e); }
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', run)
+    : run();
+  window.addEventListener('load', run);
+})();
