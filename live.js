@@ -372,17 +372,19 @@ function saveCart(c) { localStorage.setItem('jc_cart', JSON.stringify(c)); }
 
 function updateCartCount() {
   const n = getCart().reduce((s,i) => s+(i.qty||1), 0);
-  document.querySelectorAll('.cart-count,[data-cart-count],.cart__count').forEach(el => {
+  document.querySelectorAll('.cart-count,[data-cart-count],.cart__count,cart-count').forEach(el => {
     el.textContent = n;
+    if (el.tagName === 'CART-COUNT') { el.hidden = n === 0; el.setAttribute('aria-label', n + ' items'); }
   });
 }
 
 window.JC = {
-  addToCart(handle, title, price, image, size) {
+  addToCart(handle, title, price, image, size, variantId) {
     const cart = getCart();
     const key  = `${handle}__${size}`;
     const ex   = cart.find(i => i.key === key);
-    if (ex) ex.qty++; else cart.push({ key, handle, title, price, image, size, qty:1 });
+    if (ex) { ex.qty++; if (variantId) ex.variantId = variantId; }
+    else cart.push({ key, handle, title, price, image, size, variantId, qty:1 });
     saveCart(cart); updateCartCount();
     const btn = document.querySelector('[data-add-to-cart],.product-form__submit');
     if (btn) { const o = btn.textContent; btn.textContent = '✓ Added!'; setTimeout(()=>btn.textContent=o,1500); }
