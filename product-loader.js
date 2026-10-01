@@ -1,17 +1,72 @@
 (function () {
-  const STORE = 'https://jerseycrest.shop';
-  const handle = new URLSearchParams(window.location.search).get('handle');
+  /* ── store selection: supports ?store=haramball for Haramball.in products ── */
+  var _params      = new URLSearchParams(window.location.search);
+  var _storeParam  = _params.get('store');
+  var IS_HARAMBALL = _storeParam === 'haramball';
+  const STORE      = IS_HARAMBALL ? 'https://haramball.in' : 'https://jerseycrest.shop';
+
+  /* FIX 1 — sanitise haramball brand names out of titles / descriptions */
+  var _BRAND_RULES = [
+    [/haramball\.in/gi, 'UnrealSportsHub.in'],
+    [/haramball/gi,     'UnrealSportsHub'],
+  ];
+  function sanitize(str) {
+    if (!str || !IS_HARAMBALL) return str;
+    return _BRAND_RULES.reduce(function (s, r) { return s.replace(r[0], r[1]); }, String(str));
+  }
+
+  const handle = _params.get('handle');
   if (!handle) return;
 
-  fetch(STORE + '/products/' + handle + '.json')
-    .then(r => r.json())
-    .then(function (data) {
-      var p = data.product;
-      if (!p) return;
-      normalise(p);
-      applyProduct(p);
-    })
-    .catch(function (e) { console.error('[loader] fetch failed', e); });
+  if (IS_HARAMBALL) {
+    /*
+     * Haramball product flow
+     * ─────────────────────
+     * haramball-loader.js already fetched ALL haramball products and stored
+     * them in sessionStorage under the key 'haramball_products'.
+     * We read from that cache first — this means zero extra network requests
+     * and the exact product the user clicked always loads correctly.
+     * If the cache is somehow empty (e.g. user bookmarked the URL directly),
+     * we fall back to fetching the individual product from haramball.in.
+     */
+    var _loaded = false;
+
+    try {
+      var _raw   = sessionStorage.getItem('haramball_products');
+      var _cache = _raw ? JSON.parse(_raw) : null;
+      if (_cache && _cache[handle]) {
+        var _p = _cache[handle];
+        normalise(_p);
+        applyProduct(_p);
+        _loaded = true;
+      }
+    } catch (e) { /* sessionStorage unavailable */ }
+
+    if (!_loaded) {
+      /* fallback: direct fetch from haramball.in */
+      fetch('https://haramball.in/products/' + encodeURIComponent(handle) + '.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var p = data.product;
+          if (!p) return;
+          normalise(p);
+          applyProduct(p);
+        })
+        .catch(function (e) { console.error('[haramball loader] fetch failed', e); });
+    }
+
+  } else {
+    /* Own store (jerseycrest.shop) — original behaviour */
+    fetch(STORE + '/products/' + handle + '.json')
+      .then(r => r.json())
+      .then(function (data) {
+        var p = data.product;
+        if (!p) return;
+        normalise(p);
+        applyProduct(p);
+      })
+      .catch(function (e) { console.error('[loader] fetch failed', e); });
+  }
 
   function normalise(p) {
     var prices = p.variants.map(function (v) { return parseFloat(v.price) * 100; });
@@ -24,13 +79,16 @@
     var price    = p.price_min / 100;
     var compare  = p.compare_at_price_min / 100;
 
+    /* FIX 1 — clean brand name from title before writing to DOM */
+    var displayTitle = sanitize(p.title);
+
     /* ── title ── */
-    document.title = p.title + ' – Unreal Sports';
+    document.title = displayTitle + ' – Unreal Sports';
     document.querySelectorAll('h1').forEach(function (el) {
-      if (el.textContent.trim().length > 2) el.textContent = p.title;
+      if (el.textContent.trim().length > 2) el.textContent = displayTitle;
     });
     document.querySelectorAll('.product__title').forEach(function (el) {
-      el.textContent = p.title;
+      el.textContent = displayTitle;
     });
 
     /* ── price ── */
@@ -46,7 +104,7 @@
     /* ── images: rebuild main gallery + thumbnails from this product's images ── */
     if (p.images && p.images.length) buildGallery(p);
 
-    /* ── fix form actions → jerseycrest.shop ── */
+    /* ── fix form actions ── */
     document.querySelectorAll('form[action="/cart/add"], form[action*="cart/add"]').forEach(function (f) {
       f.action = STORE + '/cart/add';
     });
@@ -351,8 +409,10 @@
 
 /* ── ADD TO CART (stays on page) + BUY NOW (goes to checkout) ── */
 document.addEventListener('DOMContentLoaded', function () {
-  var STORE = 'https://jerseycrest.shop';
-  var handle = new URLSearchParams(window.location.search).get('handle');
+  var _p2       = new URLSearchParams(window.location.search);
+  var _isHaram  = _p2.get('store') === 'haramball';
+  var STORE     = _isHaram ? 'https://haramball.in' : 'https://jerseycrest.shop';
+  var handle    = _p2.get('handle');
 
   function selectedVariantId() {
     var vid = document.querySelector('form[data-type="add-to-cart-form"] input[name="id"], input[name="id"]');
@@ -372,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () { if (t.parentNode) t.remove(); }, 4000);
   }
 
-  /* ADD TO CART: save locally, show "Added to cart", DO NOT redirect */
+  /* ADD TO CART */
   document.querySelectorAll('form[data-type="add-to-cart-form"], form.product-form').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -380,6 +440,13 @@ document.addEventListener('DOMContentLoaded', function () {
       var id = selectedVariantId();
       if (!id) { alert('Please select a size'); return; }
 
+      if (_isHaram) {
+        /* Haramball product → redirect to haramball.in cart */
+        window.location.href = 'https://haramball.in/cart/' + id + ':1';
+        return;
+      }
+
+      /* Own product → add to local cart as before */
       if (window.JC && window._liveProduct) {
         var p = window._liveProduct;
         var v = p.variants.find(function (x) { return String(x.id) === String(id); });
@@ -400,7 +467,9 @@ document.addEventListener('DOMContentLoaded', function () {
     buyBtn.addEventListener('click', function () {
       var id = selectedVariantId();
       if (!id) { alert('Please select a size'); return; }
-      window.location.href = STORE + '/cart/' + id + ':1?channel=buy_now';
+      /* For haramball products, always go to haramball.in checkout */
+      var checkoutBase = _isHaram ? 'https://haramball.in' : STORE;
+      window.location.href = checkoutBase + '/cart/' + id + ':1?channel=buy_now';
     });
     accelWrap.innerHTML = '';
     accelWrap.appendChild(buyBtn);
