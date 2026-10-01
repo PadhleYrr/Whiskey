@@ -413,6 +413,50 @@ document.addEventListener('DOMContentLoaded', function () {
   var _isHaram  = _p2.get('store') === 'haramball';
   var STORE     = _isHaram ? 'https://haramball.in' : 'https://jerseycrest.shop';
   var handle    = _p2.get('handle');
+  var OWN_STORE = 'https://jerseycrest.shop';
+
+  /*
+   * Haramball variant IDs do NOT exist on our own checkout, and
+   * haramball.in/cart/<id>:1 returns 404. So for haramball products we find
+   * the same product on our own store (by handle, then by title search),
+   * match the chosen size, and use OUR variant id for cart / checkout.
+   */
+  function ownJson(url) {
+    return fetch(url, { headers: { Accept: 'application/json' } })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }
+  function resolveOwnVariant(hVariantId) {
+    var lp = window._liveProduct;
+    if (!lp) return Promise.reject(new Error('no product'));
+    var hv = lp.variants.find(function (x) { return String(x.id) === String(hVariantId); });
+    var size = hv ? String(hv.option1 || hv.title).trim().toLowerCase() : '';
+
+    function pick(prod) {
+      var v = (prod.variants || []).find(function (x) {
+        return String(x.option1 || x.title).trim().toLowerCase() === size ||
+               String(x.title).trim().toLowerCase() === size;
+      }) || (prod.variants || []).find(function (x) { return x.available; }) || (prod.variants || [])[0];
+      if (!v) throw new Error('no variant');
+      return { prod: prod, variant: v };
+    }
+
+    return ownJson(OWN_STORE + '/products/' + encodeURIComponent(lp.handle) + '.json')
+      .then(function (d) { return pick(d.product); })
+      .catch(function () {
+        return ownJson(OWN_STORE + '/search/suggest.json?q=' + encodeURIComponent(lp.title) +
+                       '&resources[type]=product&resources[limit]=1')
+          .then(function (d) {
+            var hit = d.resources && d.resources.results && d.resources.results.products &&
+                      d.resources.results.products[0];
+            if (!hit) throw new Error('not found');
+            return ownJson(OWN_STORE + '/products/' + hit.handle + '.json');
+          })
+          .then(function (d) { return pick(d.product); });
+      });
+  }
+  function notAvailable() {
+    alert('Sorry, this item is not available for checkout right now. Please try another product.');
+  }
 
   function selectedVariantId() {
     var vid = document.querySelector('form[data-type="add-to-cart-form"] input[name="id"], input[name="id"]');
@@ -441,8 +485,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!id) { alert('Please select a size'); return; }
 
       if (_isHaram) {
-        /* Haramball product → redirect to haramball.in cart */
-        window.location.href = 'https://haramball.in/cart/' + id + ':1';
+        /* Haramball product → map to our own store variant, add to our cart */
+        resolveOwnVariant(id).then(function (r) {
+          var p = window._liveProduct;
+          if (window.JC) {
+            window.JC.addToCart(r.prod.handle, p.title, p.price_min, p.images[0] ? p.images[0].src : '', r.variant.title, r.variant.id);
+          }
+          toast('<span>✓ Added to cart</span><a href="./cart.html" style="color:#fff;text-decoration:underline;font-weight:600">View cart</a>');
+        }).catch(notAvailable);
         return;
       }
 
@@ -467,9 +517,14 @@ document.addEventListener('DOMContentLoaded', function () {
     buyBtn.addEventListener('click', function () {
       var id = selectedVariantId();
       if (!id) { alert('Please select a size'); return; }
-      /* For haramball products, always go to haramball.in checkout */
-      var checkoutBase = _isHaram ? 'https://haramball.in' : STORE;
-      window.location.href = checkoutBase + '/cart/' + id + ':1?channel=buy_now';
+      if (_isHaram) {
+        /* Haramball product → checkout on OUR store with the matching variant */
+        resolveOwnVariant(id).then(function (r) {
+          window.location.href = OWN_STORE + '/cart/' + r.variant.id + ':1?channel=buy_now';
+        }).catch(notAvailable);
+        return;
+      }
+      window.location.href = STORE + '/cart/' + id + ':1?channel=buy_now';
     });
     accelWrap.innerHTML = '';
     accelWrap.appendChild(buyBtn);
