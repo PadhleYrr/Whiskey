@@ -22,14 +22,116 @@
     /*
      * Haramball product flow
      * ─────────────────────
-     * haramball-loader.js already fetched ALL haramball products and stored
-     * them in sessionStorage under the key 'haramball_products'.
-     * We read from that cache first — this means zero extra network requests
-     * and the exact product the user clicked always loads correctly.
-     * If the cache is somehow empty (e.g. user bookmarked the URL directly),
-     * we fall back to fetching the individual product from haramball.in.
+     * FIX 2 — TWO-PASS AVAILABILITY
+     *
+     * PASS 1 (fast): Read from the sessionStorage cache written by haramball-loader.js.
+     *   This renders title / images / price immediately — no waiting.
+     *   HOWEVER: the cache is built from /products.json?limit=250 (catalog endpoint).
+     *   Shopify's catalog endpoint does NOT carry accurate per-variant availability —
+     *   it often returns available:true on all variants for any in-stock product.
+     *   So the picker rendered in pass 1 is a PLACEHOLDER: sizes shown but not yet
+     *   locked, with a visual "loading availability…" state.
+     *
+     * PASS 2 (accurate): Always fetch /products/<handle>.json from haramball.in.
+     *   This is the single-product endpoint and carries correct per-variant `available`.
+     *   On success, patch only the variant availability into the product object and
+     *   rebuild just the picker — title/images/price don't re-render.
+     *   Also update the sessionStorage cache entry so repeat visits in the same
+     *   session get accurate data immediately.
      */
     var _loaded = false;
+
+    function _fetchLiveAvailability(productForDisplay) {
+      /* Mark picker as "checking stock…" while the live fetch is in-flight */
+      var _picker = document.getElementById('live-variant-picker');
+      if (_picker) {
+        var _group = _picker.querySelector('div[style*="flex-wrap"]');
+        if (_group) {
+          _group.querySelectorAll('button').forEach(function (b) {
+            b.style.opacity = '0.45';
+            b.style.cursor  = 'wait';
+            b.disabled      = true;
+          });
+        }
+      }
+
+      fetch('https://haramball.in/products/' + encodeURIComponent(handle) + '.json')
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (data) {
+          var liveProduct = data.product;
+          if (!liveProduct || !liveProduct.variants) return;
+
+          /* Build a map of variantId → available from the live (accurate) response */
+          var availMap = {};
+          liveProduct.variants.forEach(function (v) {
+            availMap[String(v.id)] = !!v.available;
+          });
+
+          /*
+           * Also map by normalised size title for cross-store matching
+           * (catalog variant IDs may differ from live product IDs in edge cases)
+           */
+          var sizeAvailMap = {};
+          liveProduct.variants.forEach(function (v) {
+            var key = String(v.option1 || v.title).trim().toLowerCase();
+            sizeAvailMap[key] = !!v.available;
+          });
+
+          /* Patch availability onto the product object we're already displaying */
+          (productForDisplay.variants || []).forEach(function (v) {
+            var byId = availMap[String(v.id)];
+            if (byId !== undefined) {
+              v.available = byId;
+            } else {
+              /* fallback: match by size label */
+              var key = String(v.option1 || v.title).trim().toLowerCase();
+              if (sizeAvailMap[key] !== undefined) v.available = sizeAvailMap[key];
+            }
+          });
+
+          /* Update cache so repeat views in this session are accurate */
+          try {
+            var _raw2 = sessionStorage.getItem('haramball_products');
+            var _map2 = _raw2 ? JSON.parse(_raw2) : {};
+            _map2[handle] = productForDisplay;
+            sessionStorage.setItem('haramball_products', JSON.stringify(_map2));
+          } catch (e) { /* storage full — non-fatal */ }
+
+          /* Rebuild only the size picker with accurate availability */
+          var existingWrapper = document.getElementById('live-variant-picker');
+          if (existingWrapper) existingWrapper.remove();
+          buildPicker(productForDisplay);
+
+          /* Also patch the static #jc-size-picker with live availability */
+          patchJcPicker(productForDisplay);
+
+          /* Keep _liveProduct in sync */
+          window._liveProduct = productForDisplay;
+        })
+        .catch(function (e) {
+          /* Live fetch failed — restore the cached picker so it's at least usable */
+          console.warn('[product-loader] live availability fetch failed', e);
+          var _picker2 = document.getElementById('live-variant-picker');
+          if (_picker2) {
+            var _group2 = _picker2.querySelector('div[style*="flex-wrap"]');
+            if (_group2) {
+              _group2.querySelectorAll('button').forEach(function (b) {
+                b.style.opacity = '';
+                b.style.cursor  = b.disabled ? 'not-allowed' : 'pointer';
+                /* re-enable only if cached data said available */
+                var vid = b.dataset.variantId;
+                var lp  = window._liveProduct;
+                if (lp && vid) {
+                  var cv = (lp.variants || []).find(function (x) { return String(x.id) === String(vid); });
+                  b.disabled = cv ? !cv.available : false;
+                } else {
+                  b.disabled = false;
+                }
+              });
+            }
+          }
+        });
+    }
 
     try {
       var _raw   = sessionStorage.getItem('haramball_products');
@@ -39,11 +141,13 @@
         normalise(_p);
         applyProduct(_p);
         _loaded = true;
+        /* Pass 2: live-patch availability on top of the fast render */
+        _fetchLiveAvailability(_p);
       }
     } catch (e) { /* sessionStorage unavailable */ }
 
     if (!_loaded) {
-      /* fallback: direct fetch from haramball.in */
+      /* No cache (e.g. direct/bookmarked URL) — live fetch is the only pass */
       fetch('https://haramball.in/products/' + encodeURIComponent(handle) + '.json')
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -51,6 +155,7 @@
           if (!p) return;
           normalise(p);
           applyProduct(p);
+          /* availability already accurate — single-product endpoint, no second pass needed */
         })
         .catch(function (e) { console.error('[haramball loader] fetch failed', e); });
     }
@@ -129,6 +234,7 @@
     syncPrices(p);
     syncSticky(p, firstV);
     buildRelated(p);
+    patchJcPicker(p);
   }
 
   function rs(n) {
@@ -330,6 +436,99 @@
     document.querySelectorAll('input[name="id"]').forEach(function (inp) {
       inp.value = id;
       inp.removeAttribute('disabled');
+    });
+  }
+
+  /*
+   * patchJcPicker — FIX 3
+   * ─────────────────────
+   * product.html contains a static #jc-size-picker whose buttons are all
+   * hard-coded as data-available="true" in the server-rendered HTML.
+   * This is the picker the customer actually sees and interacts with.
+   * product-loader.js builds a separate #live-variant-picker that targets
+   * a different DOM slot (fieldset.product-form__input), so the static picker
+   * never gets corrected — all sizes appear selectable regardless of stock.
+   *
+   * This function syncs the static picker's buttons to the live product data:
+   * - Matches each button to its variant by data-variant-id, then by size label.
+   * - Disables and visually strikes through unavailable sizes.
+   * - Removes the disabled state from sizes that ARE available (in case a
+   *   previously unavailable size is back in stock).
+   * - Also syncs the native theme radio inputs (variant-picker > input[type=radio])
+   *   so the theme's own availability logic stays consistent.
+   *
+   * Called from applyProduct() (covers jerseycrest live fetch + haramball first-pass)
+   * and from _fetchLiveAvailability() (covers haramball accurate second-pass).
+   */
+  function patchJcPicker(p) {
+    var picker = document.getElementById('jc-size-picker');
+    if (!picker) return;
+
+    /* Build lookup maps from the live product data */
+    var byId   = {};
+    var bySize = {};
+    (p.variants || []).forEach(function (v) {
+      byId[String(v.id)] = v;
+      var key = String(v.option1 || v.title).trim().toLowerCase();
+      bySize[key] = v;
+    });
+
+    var buttons = picker.querySelectorAll('.jc-size-btn');
+    buttons.forEach(function (btn) {
+      var vid     = String(btn.getAttribute('data-variant-id') || '').trim();
+      var label   = String(btn.textContent || '').trim().toLowerCase();
+      var variant = byId[vid] || bySize[label];
+      if (!variant) return;
+
+      var avail = !!variant.available;
+
+      /* Update the data attribute (keeps it in sync for any outside readers) */
+      btn.setAttribute('data-available', avail ? 'true' : 'false');
+
+      if (!avail) {
+        btn.disabled = true;
+        btn.style.cssText =
+          'opacity:0.45;cursor:not-allowed;text-decoration:line-through;' +
+          'border-color:#ddd;color:#bbb;background:#fff;';
+        /* If this button was selected, deselect it */
+        if (btn.classList.contains('jc-selected')) {
+          btn.classList.remove('jc-selected');
+          btn.setAttribute('aria-checked', 'false');
+        }
+      } else {
+        btn.disabled = false;
+        btn.style.cssText = btn.style.cssText
+          .replace(/opacity:[^;]+;?/g, '')
+          .replace(/cursor:not-allowed[^;]*;?/g, '')
+          .replace(/text-decoration:line-through[^;]*;?/g, '')
+          .replace(/border-color:#ddd[^;]*;?/g, '')
+          .replace(/color:#bbb[^;]*;?/g, '');
+        /* Restore cursor */
+        if (!btn.style.cursor) btn.style.cursor = 'pointer';
+      }
+    });
+
+    /*
+     * Also sync the native theme radio inputs so the theme's own variant
+     * machinery (price updates, images) agrees with what we're showing.
+     * Disable radios for unavailable variants so the theme marks them sold out.
+     */
+    var nativePicker = document.querySelector('variant-picker');
+    if (!nativePicker) return;
+    var radios = nativePicker.querySelectorAll('input[type="radio"]');
+    radios.forEach(function (radio) {
+      var key = String(radio.value || '').trim().toLowerCase();
+      var v   = bySize[key];
+      if (!v) return;
+      radio.disabled = !v.available;
+      /* update the label's sold-out class if the theme uses one */
+      var label = nativePicker.querySelector('label[for="' + radio.id + '"]');
+      if (!label) return;
+      if (!v.available) {
+        label.classList.add('sold-out-label', 'disabled');
+      } else {
+        label.classList.remove('sold-out-label', 'disabled');
+      }
     });
   }
 
