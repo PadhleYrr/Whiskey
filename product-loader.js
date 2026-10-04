@@ -273,20 +273,23 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-   * AVAILABILITY MODEL
-   * ──────────────────
-   * A size is selectable only when the SOURCE store's single-product endpoint
-   * (/products/<handle>.json) says that variant is available right now.
-   * Cached / catalog data is used for title, images and price only. It is
-   * never used to decide whether a size can be bought.
-   *
-   * Picker states (paintPicker):
-   *   checking – live request in flight: sizes dimmed and locked
-   *   live     – live data received: available sizes enabled, the rest crossed out
-   *   failed   – live request failed or timed out: everything locked, with a note
+   * STOCK MODEL (v4)
+   * ────────────────
+   * 1. BASELINE (instant, no live network needed):
+   *      haramball → the sessionStorage cache written by haramball-loader.js
+   *      jerseycrest → the same-origin site_data.json snapshot
+   *    The picker is drawn from this straight away.
+   * 2. LIVE (authoritative): /products/<handle>.json from the source store.
+   *    When it answers, its per-size availability replaces the baseline.
+   * 3. If the live request fails, the baseline stays. A network error never
+   *    locks sizes that the baseline shows as available.
+   * Locking everything only happens when there is no data at all yet
+   * ('checking') or when there is no baseline and live also failed ('failed').
    * ══════════════════════════════════════════════════════════════════════ */
   var LIVE_TIMEOUT_MS = 8000;
   var CACHE_KEY       = 'haramball_products';
+  var pageFilled      = false;   /* title/images/price written from some product */
+  var liveDone        = false;   /* live stock has been applied */
 
   function fetchLiveProduct(store) {
     return new Promise(function (resolve, reject) {
@@ -294,17 +297,14 @@
       var timer = setTimeout(function () {
         if (!settled) { settled = true; reject(new Error('live stock request timed out')); }
       }, LIVE_TIMEOUT_MS);
-
-      fetch(store + '/products/' + encodeURIComponent(handle) + '.json', {
+      fetch(store + '/products/' + encodeURIComponent(handle) + '.js', {
         headers: { Accept: 'application/json' }
       })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (d) {
-          var p = d && d.product;
-          if (!p || !Array.isArray(p.variants) || !p.variants.length) {
-            throw new Error('product has no variants');
-          }
-          if (!settled) { settled = true; clearTimeout(timer); resolve(p); }
+          var p = d && d.product ? d.product : d;   /* .js returns the product unwrapped */
+          if (!p || !Array.isArray(p.variants) || !p.variants.length) throw new Error('product has no variants');
+          if (!settled) { settled = true; clearTimeout(timer); resolve(fromJs(p)); }
         })
         .catch(function (e) {
           if (!settled) { settled = true; clearTimeout(timer); reject(e); }
@@ -329,6 +329,51 @@
     } catch (e) { /* storage unavailable — non-fatal */ }
   }
 
+  /* site_data.json stores images as plain URLs; the gallery expects {id, src} */
+  function fromSnapshot(hit) {
+    return {
+      handle: hit.handle,
+      title: hit.title,
+      price_min: null,
+      compare_at_price_min: null,
+      images: (hit.images || []).map(function (src, i) {
+        return { id: i + 1, src: typeof src === 'string' ? src : (src && src.src) || '' };
+      }),
+      variants: (hit.variants || []).map(function (v) {
+        return {
+          id: v.id, title: v.title, option1: v.option1,
+          available: v.available === true,
+          price: v.price, compare_at_price: v.compare_at_price
+        };
+      })
+    };
+  }
+
+  /* .js endpoint: prices in cents, images as URLs -> page shape (rupees, {id, src}) */
+  function fromJs(d) {
+    function rupees(c) {
+      var n = Number(c);
+      return isFinite(n) && n > 0 ? (n / 100).toFixed(2) : null;
+    }
+    return {
+      handle: d.handle,
+      title: d.title,
+      price_min: null,
+      compare_at_price_min: null,
+      images: (d.images || []).map(function (src, i) {
+        return { id: i + 1, src: typeof src === 'string' ? src : (src && src.src) || '' };
+      }),
+      variants: (d.variants || []).map(function (v) {
+        return {
+          id: v.id, title: v.title, option1: v.option1,
+          available: v.available === true,
+          price: rupees(v.price) || '0',
+          compare_at_price: rupees(v.compare_at_price)
+        };
+      })
+    };
+  }
+
   function logLiveStock(p) {
     try {
       console.info('[product-loader] live stock for ' + handle + ': ' +
@@ -338,60 +383,56 @@
     } catch (e) { /* logging only */ }
   }
 
-  /* Haramball: render from cache at once (sizes locked), then apply live stock */
-  function startHaramball() {
-    var cached = readHaramballCache();
-    var shown  = false;
-
-    if (cached && Array.isArray(cached.variants) && cached.variants.length) {
-      normalise(cached);
-      applyProduct(cached);
-      paintPicker(cached, 'checking');
-      shown = true;
-    } else {
-      paintPicker(null, 'checking');
-    }
-
-    fetchLiveProduct(STORE)
-      .then(function (live) {
-        logLiveStock(live);
-        if (shown) {
-          /* keep the rendered product, swap in the live variants and price */
-          cached.variants = live.variants;
-          cached.price_min = null;
-          cached.compare_at_price_min = null;
-          normalise(cached);
-          window._liveProduct = cached;
-          syncCheckout(cached);
-          syncPrices(cached);
-          paintPicker(cached, 'live');
-          writeHaramballCache(cached);
-        } else {
-          normalise(live);
-          applyProduct(live);
-          paintPicker(live, 'live');
-          writeHaramballCache(live);
-        }
-      })
-      .catch(function (e) {
-        console.warn('[product-loader] live stock check failed', e);
-        paintPicker(null, 'failed');
-      });
+  /* Draw the page once, from whichever product arrives first */
+  function fillPage(p) {
+    normalise(p);
+    applyProduct(p);
+    pageFilled = true;
   }
 
-  /* Own store (jerseycrest.shop): single-product endpoint is already live */
-  function startOwnStore() {
-    paintPicker(null, 'checking');
+  function applyBaseline(p) {
+    if (liveDone || pageFilled || !p || !Array.isArray(p.variants) || !p.variants.length) return;
+    fillPage(p);
+    paintPicker(p, 'baseline');
+  }
+
+  function applyLive(live) {
+    liveDone = true;
+    logLiveStock(live);
+    if (!pageFilled) {
+      fillPage(live);
+    } else {
+      var cur = window._liveProduct;
+      var av = {};
+      live.variants.forEach(function (v) { av[String(v.id)] = v.available === true; });
+      cur.variants.forEach(function (v) { v.available = av[String(v.id)] === true; });
+      syncCheckout(cur);
+    }
+    paintPicker(window._liveProduct, 'live');
+    if (IS_HARAMBALL) writeHaramballCache(window._liveProduct);
+  }
+
+  function startFlow() {
+    /* 1. baseline */
+    if (IS_HARAMBALL) {
+      applyBaseline(readHaramballCache());
+    } else {
+      fetch('./site_data.json')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var hit = (d.products || []).filter(function (x) { return x.handle === handle; })[0];
+          if (hit) applyBaseline(fromSnapshot(hit));
+        })
+        .catch(function (e) { console.warn('[product-loader] snapshot unavailable', e); });
+    }
+    if (!pageFilled) paintPicker(null, 'checking');
+
+    /* 2. live */
     fetchLiveProduct(STORE)
-      .then(function (p) {
-        logLiveStock(p);
-        normalise(p);
-        applyProduct(p);
-        paintPicker(p, 'live');
-      })
+      .then(applyLive)
       .catch(function (e) {
-        console.error('[loader] live stock check failed', e);
-        paintPicker(null, 'failed');
+        console.warn('[product-loader] live stock check failed; keeping baseline', e);
+        if (!pageFilled) paintPicker(null, 'failed');
       });
   }
 
@@ -452,7 +493,7 @@
     });
 
     picker.querySelectorAll('.jc-size-btn').forEach(function (btn) {
-      if (mode !== 'live') {
+      if (mode === 'checking' || mode === 'failed') {
         setBtnState(btn, mode === 'checking' ? 'checking' : 'unavailable');
         return;
       }
@@ -467,7 +508,7 @@
     if (nativePicker) {
       nativePicker.querySelectorAll('input[type="radio"]').forEach(function (radio) {
         var v = bySize[String(radio.value || '').trim().toLowerCase()];
-        radio.disabled = !(mode === 'live' && v && v.available === true);
+        radio.disabled = !((mode === 'live' || mode === 'baseline') && v && v.available === true);
       });
     }
 
@@ -500,11 +541,8 @@
     if (installId && firstV) installId.value = firstV.id;
   }
 
-  function run() {
-    if (IS_HARAMBALL) startHaramball(); else startOwnStore();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-  else run();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFlow);
+  else startFlow();
 
 })();
 
