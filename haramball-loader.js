@@ -97,12 +97,14 @@
 
   /* ─── helpers ────────────────────────────────────────────────────────────── */
 
+  /* same price format the jerseycrest storefront uses: "Rs. 1,299.00" */
   function rs(n) {
-    return '₹' + Number(n).toLocaleString('en-IN', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+    return 'Rs. ' + Number(n).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     });
   }
+
 
   function imgUrl(src, w) {
     if (!src) return '';
@@ -120,6 +122,7 @@
 
   /* ─── card builder ───────────────────────────────────────────────────────── */
 
+  /* Card markup copied from the jerseycrest storefront (product-card), so both shops look identical */
   function buildCard(p) {
     var variants      = p.variants || [];
     var prices        = variants.map(function (v) { return parseFloat(v.price) || 0; }).filter(Boolean);
@@ -131,70 +134,61 @@
     var onSale  = compare > price && price > 0;
     var pct     = onSale ? Math.round((compare - price) / compare * 100) : 0;
 
-    var img1  = p.images && p.images[0] ? p.images[0].src : '';
-    var img2  = p.images && p.images[1] ? p.images[1].src : '';
-
-    /* FIX 1 — clean brand name from title */
+    var img1 = p.images && p.images[0] ? p.images[0].src : '';
+    var img2 = p.images && p.images[1] ? p.images[1].src : '';
     var title = sanitize(p.title);
-
-    /* FIX 2 — link to own product.html, NOT directly to haramball.in */
     var href  = './product.html?handle=' + encodeURIComponent(p.handle) + '&store=haramball';
 
-    /* badges */
     var badgeHtml = '';
     if (onSale)        badgeHtml += '<span class="badge badge--onsale flex items-center gap-1d5 font-medium leading-none rounded-full">Save ' + pct + '%</span>';
     if (!anyAvailable) badgeHtml += '<span class="badge badge--soldout flex items-center gap-1d5 font-medium leading-none rounded-full">Sold Out</span>';
 
-    /* price block */
     var priceHtml = onSale
-      ? '<div class="price price--show-badge price--on-sale"><div class="price__sale">' +
-          '<span class="price-item price-item--sale price-item--last">' + rs(price) + '</span>' +
-          '<s class="price-item price-item--regular">' + rs(compare) + '</s>' +
-        '</div></div>'
-      : '<div class="price"><div class="price__regular">' +
-          '<span class="price-item price-item--regular">' + rs(price) + '</span>' +
-        '</div></div>';
+      ? '<div class="price price--on-sale flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5">' +
+          '<span class="sr-only">Sale price</span><span class="price__regular whitespace-nowrap">' + rs(price) + '</span>' +
+          '<span class="sr-only">Regular price</span>' +
+          '<span class="price__sale inline-flex items-center h-auto relative">' + rs(compare) + '</span>' +
+        '</div>'
+      : '<div class="price flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5">' +
+          '<span class="price__regular whitespace-nowrap">' + rs(price) + '</span>' +
+        '</div>';
 
-    /* hover second image */
-    var tplHtml = img2
-      ? '<template>' +
-          '<div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img1, 540)) + '" alt="' + esc(title) + '" loading="lazy"></div>' +
-          '<div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img2, 540)) + '" alt="' + esc(title) + '" loading="lazy"></div>' +
-        '</template>' +
-        '<secondary-media class="product-card__carousel block absolute top-0 left-0 w-full h-full hidden md:block" selected-index="0"></secondary-media>'
+    var secondary = img2
+      ? '<secondary-media class="product-card__carousel block absolute top-0 left-0 w-full h-full hidden md:block" selected-index="0"></secondary-media>' +
+        '<template><div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img2, 626)) + '" alt="' + esc(title) + '" loading="lazy"></div></template>'
       : '';
 
     return (
       '<div class="card product-card product-card--standard flex flex-col leading-none relative">' +
         '<div class="product-card__media relative h-auto">' +
           '<a class="block relative media media--square" href="' + href + '">' +
-            tplHtml +
-            '<img src="'    + esc(imgUrl(img1, 626)) + '"' +
-               ' alt="'    + esc(title) + '"' +
-               ' loading="lazy"' +
-               ' srcset="' + esc(imgUrl(img1, 180)) + ' 180w, ' +
-                             esc(imgUrl(img1, 360)) + ' 360w, ' +
-                             esc(imgUrl(img1, 540)) + ' 540w, ' +
-                             esc(imgUrl(img1, 720)) + ' 720w"' +
-               ' width="626" height="626">' +
+            '<div class="media media--height w-full h-full overflow-hidden">' +
+              '<img src="' + esc(imgUrl(img1, 626)) + '" alt="' + esc(title) + '" width="626" loading="lazy"' +
+                ' srcset="' + esc(imgUrl(img1, 180)) + ' 180w, ' + esc(imgUrl(img1, 360)) + ' 360w, ' +
+                esc(imgUrl(img1, 540)) + ' 540w">' +
+            '</div>' +
+            secondary +
           '</a>' +
           (badgeHtml ? '<div class="badges z-2 absolute grid gap-3 pointer-events-none">' + badgeHtml + '</div>' : '') +
           '<div class="quick-add flex justify-end md:justify-center absolute w-full z-1 pointer-events-none">' +
-            '<a href="' + href + '"' +
-               ' class="button button--primary pointer-events-auto md:opacity-0"' +
-               ' style="text-decoration:none;">Choose Options</a>' +
+            '<a href="' + href + '" class="button button--primary pointer-events-auto md:opacity-0">' +
+              '<span class="btn-fill" data-fill></span>' +
+              '<span class="btn-text"><svg class="icon icon-cart icon-sm md:hidden" viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg" role="presentation">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" d="M1 1h.5v0c.226 0 .339 0 .44.007a3 3 0 0 1 2.62 1.976c.034.095.065.204.127.42l.17.597m0 0 1.817 6.358c.475 1.664.713 2.496 1.198 3.114a4 4 0 0 0 1.633 1.231c.727.297 1.592.297 3.322.297h2.285c1.75 0 2.626 0 3.359-.302a4 4 0 0 0 1.64-1.253c.484-.627.715-1.472 1.175-3.161l.06-.221c.563-2.061.844-3.092.605-3.906a3 3 0 0 0-1.308-1.713C19.92 4 18.853 4 16.716 4H4.857ZM12 20a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"></path>' +
+              '</svg><span class="hidden md:block">Choose options</span></span>' +
+            '</a>' +
           '</div>' +
         '</div>' +
         '<div class="product-card__content grow flex flex-col justify-start text-center w-full">' +
           '<div class="product-card__details flex flex-col lg:flex-row items-baseline gap-2 w-full">' +
-            '<div class="product-card__price">' + priceHtml + '</div>' +
-            '<a class="product-card__title reversed-link text-base-xl font-medium leading-tight"' +
-               ' href="' + href + '">' + esc(title) + '</a>' +
+            '<p class="grow"><a class="product-card__title reversed-link text-base-xl font-medium leading-tight" href="' + href + '">' + esc(title) + '</a></p>' +
+            '<div class="flex flex-col gap-2">' + priceHtml + '</div>' +
           '</div>' +
         '</div>' +
       '</div>'
     );
   }
+
 
   /* ─── skeleton placeholders ──────────────────────────────────────────────── */
 
@@ -228,6 +222,49 @@
       .then(function (d) { return d.products || []; });
   }
 
+  /* all-products page: jerseycrest grid on the left, haramball on the right, 50/50 */
+  function splitBesideCollection(section) {
+    var host = document.getElementById('ProductGridContainer');
+    if (!host || !section || !host.parentNode) return;
+    if (!document.getElementById('jc-split-style')) {
+      var st = document.createElement('style');
+      st.id = 'jc-split-style';
+      st.textContent =
+        '.jc-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start;width:100%;}' +
+        '.jc-split__col{min-width:0;}' +
+        '.jc-split .card-grid--4{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}' +
+        '.jc-split__section{padding-top:0 !important;padding-bottom:0 !important;}' +
+        '.jc-split__section .page-width{padding-left:0 !important;padding-right:0 !important;max-width:none !important;}' +
+        '@media (max-width:767px){.jc-split{grid-template-columns:minmax(0,1fr);gap:48px;}}';
+      document.head.appendChild(st);
+    }
+    var row = document.createElement('div');
+    row.className = 'jc-split';
+    var left = document.createElement('div');
+    var right = document.createElement('div');
+    left.className = 'jc-split__col';
+    right.className = 'jc-split__col';
+    host.parentNode.insertBefore(row, host);
+    row.appendChild(left);
+    row.appendChild(right);
+    left.appendChild(host);
+    section.classList.add('jc-split__section');
+    right.appendChild(section);
+  }
+
+  /* all pages of the catalog (250 per page), so a 200+ product store is complete */
+  function fetchAll() {
+    var all = [];
+    function next(page) {
+      return fetchPage(page).then(function (batch) {
+        all = all.concat(batch);
+        if (batch.length === 250 && page < 10) return next(page + 1);
+        return all;
+      });
+    }
+    return next(1);
+  }
+
   /* ─── sessionStorage cache ───────────────────────────────────────────────── */
   /*
    * After fetching all products we store them in sessionStorage keyed by handle.
@@ -259,7 +296,32 @@
       return;
     }
 
-    grid.innerHTML = filtered.slice(0, limit).map(buildCard).join('');
+    /* show the first batch, then reveal more on each click until everything is shown */
+    var showAll = grid.dataset.show === 'all';
+    var step  = showAll ? filtered.length : Math.max(limit, 12);
+    var shown = 0;
+    grid.innerHTML = '';
+
+    var btn = document.getElementById(GRID_ID + '-more');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = GRID_ID + '-more';
+      btn.className = 'button button--secondary';
+      btn.style.cssText = 'display:block;margin:32px auto 0;';
+      grid.parentNode.insertBefore(btn, grid.nextSibling);
+    }
+
+    function showMore() {
+      var next = filtered.slice(shown, shown + step);
+      shown += next.length;
+      grid.insertAdjacentHTML('beforeend', next.map(buildCard).join(''));
+      var left = filtered.length - shown;
+      btn.style.display = left > 0 ? '' : 'none';
+      btn.textContent = 'Show more (' + left + ' left)';
+    }
+    btn.onclick = showMore;
+    showMore();
   }
 
   /* ─── init ───────────────────────────────────────────────────────────────── */
@@ -275,7 +337,11 @@
 
     grid.innerHTML = buildSkeleton(Math.min(limit, 4));
 
-    fetchPage(1)
+    if (grid.dataset.split === '1') {
+      splitBesideCollection(section);
+    }
+
+    fetchAll()
       .then(function (products) {
         if (!products.length) { section.style.display = 'none'; return; }
         /* cache ALL products so product-loader.js can read them on the next page */
