@@ -134,41 +134,9 @@ async function initCollectionsPage() {
     return;
   }
 
-  const container = document.querySelector(
-    '#ProductGridContainer motion-list, #ProductGridContainer, motion-list.card-grid'
-  );
-  if (!container) return;
-
-  container.innerHTML = '<p style="padding:2rem;text-align:center;color:#999">Loading…</p>';
-
-  const skip = new Set(['frontpage','all-products']);
-  let cols = [];
-  try {
-    const r = await fetch('https://jerseycrest.shop/collections.json?limit=250');
-    cols = (await r.json()).collections.filter(c => !skip.has(c.handle));
-  } catch(e) { container.innerHTML = ''; return; }
-
-  // fetch first product image per collection in parallel
-  const imgs = await Promise.all(cols.map(async c => {
-    try {
-      const r = await fetch('https://jerseycrest.shop/collections/' + c.handle + '/products.json?limit=1');
-      const src = (await r.json()).products?.[0]?.images?.[0]?.src || '';
-      return { h: c.handle, src: src.startsWith('//') ? 'https:' + src : src };
-    } catch(e) { return { h: c.handle, src: '' }; }
-  }));
-  const imgMap = {};
-  imgs.forEach(i => { if (i.src) imgMap[i.h] = i.src; });
-
-  container.innerHTML =
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">' +
-    cols.map(c => {
-      const src = imgMap[c.handle] || '';
-      return '<a href="./collections.html?collection=' + c.handle + '" style="text-decoration:none;color:inherit;background:#f5f5f5;border-radius:8px;overflow:hidden;display:block">' +
-        (src ? '<img src="' + src + '" alt="' + c.title + '" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover"/>'
-             : '<div style="width:100%;aspect-ratio:1;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#999">' + c.title + '</div>') +
-        '<div style="padding:10px;text-align:center"><p style="font-size:13px;font-weight:700;margin:0;text-transform:uppercase;line-height:1.3">' + c.title + '</p></div>' +
-        '</a>';
-    }).join('') + '</div>';
+  /* All-products page (no ?collection=): keep the server-rendered jerseycrest
+     products as they are. Collection tiles do not belong on this page. */
+  return;
 }
 
 /* ── 4. PRODUCT GRID RENDERER ── */
