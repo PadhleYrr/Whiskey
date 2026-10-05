@@ -450,8 +450,16 @@
     document.head.appendChild(s);
   }
 
+  /* Haramball labels some sizes 2XL/3XL where the theme says XXL/XXXL */
+  var SIZE_ALIASES = { '2xl': 'xxl', '3xl': 'xxxl', '2 xl': 'xxl', '3 xl': 'xxxl' };
+  function normSize(s) {
+    var k = String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return SIZE_ALIASES[k] || k;
+  }
+  window.jcNormSize = normSize;
+
   function sizeKey(v) {
-    return String((v && (v.option1 || v.title)) || '').trim().toLowerCase();
+    return normSize((v && (v.option1 || v.title)) || '');
   }
 
   function setBtnState(btn, state) {
@@ -497,7 +505,7 @@
         setBtnState(btn, mode === 'checking' ? 'checking' : 'unavailable');
         return;
       }
-      var label = String(btn.textContent || '').trim().toLowerCase();
+      var label = normSize(btn.textContent);
       var v = byId[String(btn.getAttribute('data-variant-id') || '')] || bySize[label] || null;
       if (v) btn.setAttribute('data-variant-id', String(v.id));
       setBtnState(btn, (v && v.available === true) ? 'available' : 'unavailable');
@@ -507,7 +515,7 @@
     var nativePicker = document.querySelector('variant-picker');
     if (nativePicker) {
       nativePicker.querySelectorAll('input[type="radio"]').forEach(function (radio) {
-        var v = bySize[String(radio.value || '').trim().toLowerCase()];
+        var v = bySize[normSize(radio.value)];
         radio.disabled = !((mode === 'live' || mode === 'baseline') && v && v.available === true);
       });
     }
@@ -568,12 +576,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var lp = window._liveProduct;
     if (!lp) return Promise.reject(new Error('no product'));
     var hv = lp.variants.find(function (x) { return String(x.id) === String(hVariantId); });
-    var size = hv ? String(hv.option1 || hv.title).trim().toLowerCase() : '';
+    var size = hv ? window.jcNormSize(hv.option1 || hv.title) : '';
 
     function pick(prod) {
       var v = (prod.variants || []).find(function (x) {
-        return String(x.option1 || x.title).trim().toLowerCase() === size ||
-               String(x.title).trim().toLowerCase() === size;
+        return window.jcNormSize(x.option1 || x.title) === size ||
+               window.jcNormSize(x.title) === size;
       }) || (prod.variants || []).find(function (x) { return x.available; }) || (prod.variants || [])[0];
       if (!v) throw new Error('no variant');
       return { prod: prod, variant: v };
