@@ -122,7 +122,25 @@
 
   /* ─── card builder ───────────────────────────────────────────────────────── */
 
-  /* Card markup copied from the jerseycrest storefront (product-card), so both shops look identical */
+  /* Card = the exact jerseycrest product-card markup (captured from the storefront
+     collection page), with this product's image, title, link, price and badge filled in. */
+  var CARD_TEMPLATE = "<div class=\"card product-card product-card--standard flex flex-col leading-none relative\"><div class=\"product-card__media relative h-auto\">\n          {{BADGES}}\n{{MEDIA}}<div class=\"quick-add flex justify-end md:justify-center absolute w-full z-1 pointer-events-none\"><a href=\"{{HREF}}\" class=\"button button--primary pointer-events-auto md:opacity-0\" style=\"text-decoration:none\">\n                    <span class=\"btn-fill\" data-fill></span>\n                    <span class=\"btn-text\"><svg class=\"icon icon-cart icon-sm md:hidden\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" role=\"presentation\">\n          <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M1 1h.5v0c.226 0 .339 0 .44.007a3 3 0 0 1 2.62 1.976c.034.095.065.204.127.42l.17.597m0 0 1.817 6.358c.475 1.664.713 2.496 1.198 3.114a4 4 0 0 0 1.633 1.231c.727.297 1.592.297 3.322.297h2.285c1.75 0 2.626 0 3.359-.302a4 4 0 0 0 1.64-1.253c.484-.627.715-1.472 1.175-3.161l.06-.221c.563-2.061.844-3.092.605-3.906a3 3 0 0 0-1.308-1.713C19.92 4 18.853 4 16.716 4H4.857ZM12 20a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z\"></path>\n        </svg><span class=\"hidden md:block\">Choose options</span>\n                    </span>\n                  </a></div></div><div class=\"product-card__content grow flex flex-col justify-start text-center w-full\"><div class=\"product-card__details flex flex-col lg:flex-row items-baseline gap-2 w-full\">\n        <p class=\"grow\">\n          {{TITLE_LINK}}\n        </p>\n        \n        {{PRICEWRAP}}</div>\n      </div></div></div>";
+  
+  function mediaHtml(href, img1, img2, title) {
+    var m = '<a class="block relative media media--square" href="' + href + '" aria-hidden="true" tabindex="-1">';
+    if (img2) {
+      m += '<template>' +
+        '<div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img1, 626)) + '" alt="' + esc(title) + '" width="626" height="939" loading="lazy" is="lazy-image"></div>' +
+        '<div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img2, 626)) + '" alt="' + esc(title) + '" width="626" height="939" loading="lazy" is="lazy-image"></div>' +
+        '</template>' +
+        '<secondary-media class="product-card__carousel block absolute top-0 left-0 w-full h-full hidden md:block" selected-index="0"></secondary-media>';
+    }
+    m += '<img src="' + esc(imgUrl(img1, 626)) + '" alt="' + esc(title) + '" srcset="' +
+      esc(imgUrl(img1, 180)) + ' 180w, ' + esc(imgUrl(img1, 360)) + ' 360w, ' + esc(imgUrl(img1, 540)) + ' 540w" ' +
+      'width="626" height="939" loading="eager">';
+    return m + '</a>';
+  }
+
   function buildCard(p) {
     var variants      = p.variants || [];
     var prices        = variants.map(function (v) { return parseFloat(v.price) || 0; }).filter(Boolean);
@@ -134,59 +152,30 @@
     var onSale  = compare > price && price > 0;
     var pct     = onSale ? Math.round((compare - price) / compare * 100) : 0;
 
-    var img1 = p.images && p.images[0] ? p.images[0].src : '';
-    var img2 = p.images && p.images[1] ? p.images[1].src : '';
-    var title = sanitize(p.title);
+    var img1  = p.images && p.images[0] ? p.images[0].src : '';
+    var img2  = p.images && p.images[1] ? p.images[1].src : '';
+    var title = sanitize(p.title).replace(/\s*\|\s*UnrealSports\w*(\.\w+)?\s*$/i, '').trim();
     var href  = './product.html?handle=' + encodeURIComponent(p.handle) + '&store=haramball';
 
-    var badgeHtml = '';
-    if (onSale)        badgeHtml += '<span class="badge badge--onsale flex items-center gap-1d5 font-medium leading-none rounded-full">Save ' + pct + '%</span>';
-    if (!anyAvailable) badgeHtml += '<span class="badge badge--soldout flex items-center gap-1d5 font-medium leading-none rounded-full">Sold Out</span>';
+    var badges = '';
+    if (onSale) {
+      badges = '<div class="badges z-2 absolute grid gap-3 pointer-events-none"><span class="badge badge--onsale flex items-center gap-1d5 font-medium leading-none rounded-full">Save ' + pct + '%</span></div>';
+    } else if (!anyAvailable) {
+      badges = '<div class="badges z-2 absolute grid gap-3 pointer-events-none"><span class="badge badge--soldout flex items-center gap-1d5 font-medium leading-none rounded-full">Sold out</span></div>';
+    }
 
     var priceHtml = onSale
-      ? '<div class="price price--on-sale flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5">' +
-          '<span class="sr-only">Sale price</span><span class="price__regular whitespace-nowrap">' + rs(price) + '</span>' +
-          '<span class="sr-only">Regular price</span>' +
-          '<span class="price__sale inline-flex items-center h-auto relative">' + rs(compare) + '</span>' +
-        '</div>'
-      : '<div class="price flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5">' +
-          '<span class="price__regular whitespace-nowrap">' + rs(price) + '</span>' +
-        '</div>';
+      ? '<div class="price price--on-sale flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5"\n><span class="sr-only">Sale price</span><span class="price__regular whitespace-nowrap">' + rs(price) + '</span><span class="sr-only">Regular price</span>\n    <span class="price__sale inline-flex items-center h-auto relative">' + rs(compare) + '</span></div>'
+      : '<div class="price flex flex-wrap lg:flex-col lg:items-end gap-2 md:gap-1d5"\n><span class="price__regular whitespace-nowrap">' + rs(price) + '</span></div>';
 
-    var secondary = img2
-      ? '<secondary-media class="product-card__carousel block absolute top-0 left-0 w-full h-full hidden md:block" selected-index="0"></secondary-media>' +
-        '<template><div class="media media--height w-full h-full overflow-hidden"><img src="' + esc(imgUrl(img2, 626)) + '" alt="' + esc(title) + '" loading="lazy"></div></template>'
-      : '';
+    var titleLink = '<a class="product-card__title reversed-link text-base-xl font-medium leading-tight" href="' + href + '">' + esc(title) + '</a>';
 
-    return (
-      '<div class="card product-card product-card--standard flex flex-col leading-none relative">' +
-        '<div class="product-card__media relative h-auto">' +
-          '<a class="block relative media media--square" href="' + href + '">' +
-            '<div class="media media--height w-full h-full overflow-hidden">' +
-              '<img src="' + esc(imgUrl(img1, 626)) + '" alt="' + esc(title) + '" width="626" loading="lazy"' +
-                ' srcset="' + esc(imgUrl(img1, 180)) + ' 180w, ' + esc(imgUrl(img1, 360)) + ' 360w, ' +
-                esc(imgUrl(img1, 540)) + ' 540w">' +
-            '</div>' +
-            secondary +
-          '</a>' +
-          (badgeHtml ? '<div class="badges z-2 absolute grid gap-3 pointer-events-none">' + badgeHtml + '</div>' : '') +
-          '<div class="quick-add flex justify-end md:justify-center absolute w-full z-1 pointer-events-none">' +
-            '<a href="' + href + '" class="button button--primary pointer-events-auto md:opacity-0">' +
-              '<span class="btn-fill" data-fill></span>' +
-              '<span class="btn-text"><svg class="icon icon-cart icon-sm md:hidden" viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg" role="presentation">' +
-                '<path stroke-linecap="round" stroke-linejoin="round" d="M1 1h.5v0c.226 0 .339 0 .44.007a3 3 0 0 1 2.62 1.976c.034.095.065.204.127.42l.17.597m0 0 1.817 6.358c.475 1.664.713 2.496 1.198 3.114a4 4 0 0 0 1.633 1.231c.727.297 1.592.297 3.322.297h2.285c1.75 0 2.626 0 3.359-.302a4 4 0 0 0 1.64-1.253c.484-.627.715-1.472 1.175-3.161l.06-.221c.563-2.061.844-3.092.605-3.906a3 3 0 0 0-1.308-1.713C19.92 4 18.853 4 16.716 4H4.857ZM12 20a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"></path>' +
-              '</svg><span class="hidden md:block">Choose options</span></span>' +
-            '</a>' +
-          '</div>' +
-        '</div>' +
-        '<div class="product-card__content grow flex flex-col justify-start text-center w-full">' +
-          '<div class="product-card__details flex flex-col lg:flex-row items-baseline gap-2 w-full">' +
-            '<p class="grow"><a class="product-card__title reversed-link text-base-xl font-medium leading-tight" href="' + href + '">' + esc(title) + '</a></p>' +
-            '<div class="flex flex-col gap-2">' + priceHtml + '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>'
-    );
+    return CARD_TEMPLATE
+      .split('{{BADGES}}').join(badges)
+      .split('{{MEDIA}}').join(mediaHtml(href, img1, img2, title))
+      .split('{{PRICEWRAP}}').join('<div class="flex flex-col gap-2">' + priceHtml + '</div>')
+      .split('{{TITLE_LINK}}').join(titleLink)
+      .split('{{HREF}}').join(href);
   }
 
 
@@ -235,7 +224,10 @@
         '.jc-split .card-grid--4{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}' +
         '.jc-split__section{padding-top:0 !important;padding-bottom:0 !important;}' +
         '.jc-split__section .page-width{padding-left:0 !important;padding-right:0 !important;max-width:none !important;}' +
-        '@media (max-width:767px){.jc-split{grid-template-columns:minmax(0,1fr);gap:48px;}}';
+        '@media (max-width:767px){' +
+          '.jc-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}' +
+          '.jc-split .card-grid--4{grid-template-columns:minmax(0,1fr) !important;}' +
+        '}';
       document.head.appendChild(st);
     }
     var row = document.createElement('div');
