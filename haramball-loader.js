@@ -18,6 +18,7 @@
   'use strict';
 
   var HARAMBALL  = 'https://haramball.in';
+  var JC_STORE   = 'https://jerseycrest.shop';
   var SECTION_ID = 'haramball-products-section';
   var GRID_ID    = 'haramball-product-grid';
 
@@ -141,7 +142,7 @@
     return m + '</a>';
   }
 
-  function buildCard(p) {
+  function buildCard(p, store) {
     var variants      = p.variants || [];
     var prices        = variants.map(function (v) { return parseFloat(v.price) || 0; }).filter(Boolean);
     var comparePrices = variants.map(function (v) { return parseFloat(v.compare_at_price) || 0; }).filter(Boolean);
@@ -155,7 +156,7 @@
     var img1  = p.images && p.images[0] ? p.images[0].src : '';
     var img2  = p.images && p.images[1] ? p.images[1].src : '';
     var title = sanitize(p.title).replace(/\s*\|\s*UnrealSports\w*(\.\w+)?\s*$/i, '').trim();
-    var href  = './product.html?handle=' + encodeURIComponent(p.handle) + '&store=haramball';
+    var href  = './product.html?handle=' + encodeURIComponent(p.handle) + (store === 'haramball' ? '&store=haramball' : '');
 
     var badges = '';
     if (onSale) {
@@ -240,8 +241,42 @@
     row.appendChild(left);
     row.appendChild(right);
     left.appendChild(host);
+    var titleWrap = section.querySelector('.title-wrapper');
+    if (titleWrap) titleWrap.remove();
     section.classList.add('jc-split__section');
     right.appendChild(section);
+  }
+
+  /* all-products page: show every jerseycrest product on the one page, not 24 per page.
+     Products come from the store's catalog JSON (CORS-enabled) and use the same card. */
+  function fetchCatalogAll(base) {
+    var all = [];
+    function next(page) {
+      return fetch(base + '/products.json?limit=250&page=' + page, { headers: { Accept: 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) {
+          var batch = (d && d.products) || [];
+          all = all.concat(batch);
+          if (batch.length === 250 && page < 10) return next(page + 1);
+          return all;
+        });
+    }
+    return next(1);
+  }
+
+  function showAllJerseycrest() {
+    var grid = document.querySelector('#ProductGridContainer motion-list');
+    if (!grid) return;
+    fetchCatalogAll(JC_STORE)
+      .then(function (products) {
+        if (!products.length) return;
+        var pag = document.querySelector('#ProductGridContainer .pagination');
+        if (pag) pag.remove();
+        grid.innerHTML = products.map(function (p) { return buildCard(p, 'jerseycrest'); }).join('');
+      })
+      .catch(function (e) {
+        console.warn('[all products] could not load every jerseycrest product; keeping page 1', e);
+      });
   }
 
   /* all pages of the catalog (250 per page), so a 200+ product store is complete */
@@ -307,7 +342,7 @@
     function showMore() {
       var next = filtered.slice(shown, shown + step);
       shown += next.length;
-      grid.insertAdjacentHTML('beforeend', next.map(buildCard).join(''));
+      grid.insertAdjacentHTML('beforeend', next.map(function (p) { return buildCard(p, 'haramball'); }).join(''));
       var left = filtered.length - shown;
       btn.style.display = left > 0 ? '' : 'none';
       btn.textContent = 'Show more (' + left + ' left)';
@@ -331,6 +366,7 @@
 
     if (grid.dataset.split === '1') {
       splitBesideCollection(section);
+      showAllJerseycrest();
     }
 
     fetchAll()
@@ -345,6 +381,8 @@
         section.style.display = 'none';
       });
   }
+
+  window.jcBuildCard = buildCard;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
