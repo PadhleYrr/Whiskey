@@ -43,13 +43,21 @@
       ' style="text-decoration:none;color:inherit;background:#f5f5f5;border-radius:8px;overflow:hidden;display:block">' +
       img +
       '<div style="padding:10px;text-align:center">' +
-        '<p style="font-size:13px;font-weight:700;margin:0;text-transform:uppercase;line-height:1.3">' + c.title + '</p>' +
-        '<p style="font-size:11px;margin:4px 0 0;color:#888;text-transform:uppercase;letter-spacing:.05em">' + STORES[c.store].label + '</p>' +
+        '<p style="font-size:13px;font-weight:700;margin:0;text-transform:uppercase;line-height:1.3;overflow-wrap:anywhere;">' + c.title + '</p>' +
+        '<p style="font-size:11px;margin:4px 0 0;color:#888;text-transform:uppercase;letter-spacing:.05em;overflow-wrap:anywhere;">' + STORES[c.store].label + '</p>' +
       '</div></a>';
+  }
+
+  /* the theme gives this grid 4 columns; a tile grid inside one column is squeezed.
+     Use the full width instead, with its own responsive tile grid. */
+  function fullWidth(g) {
+    g.className = '';
+    g.style.cssText = 'display:block;width:100%;';
   }
 
   function renderTiles(g) {
     setText(/^Products$/, 'Collections');
+    fullWidth(g);
     g.innerHTML = '<p style="padding:2rem;text-align:center;color:#999">Loading…</p>';
 
     var lists = Object.keys(STORES).map(function (name) {
@@ -76,7 +84,7 @@
       }));
     }).then(function (cols) {
       cols = cols.filter(function (c) { return c.count > 0; });
-      g.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">' +
+      g.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;width:100%;padding:12px 0 24px;">' +
         cols.map(tileHtml).join('') + '</div>';
       setText(/^\d+ products$/, '');
     });
@@ -86,6 +94,8 @@
     var s = STORES[store];
     var title = titleFromHandle(col);
     setText(/^Products$/, title);
+    g.className = 'card-grid card-grid--4 mobile:card-grid--2 grid relative';
+    g.style.cssText = '';
     g.innerHTML = '<p style="padding:2rem;text-align:center;color:#999">Loading…</p>';
 
     getJSON(s.base + '/collections/' + encodeURIComponent(col) + '/products.json?limit=250')
