@@ -70,27 +70,27 @@ document.addEventListener('click', e => {
     'new-season-kits':           './new-season.html',
     'all':                       './collections.html',
     'all-products':              './collections.html',
-    '':                          './collections.html',
-    'full-sleeves-jerseys':      './collections.html?collection=full-sleeves-jerseys',
-    'half-sleeve-jerseys':       './collections.html?collection=half-sleeve-jerseys',
-    'retro-jerseys':             './collections.html?collection=retro-jerseys',
-    'best-sellers':              './collections.html?collection=best-sellers',
-    'special-edition':           './collections.html?collection=special-edition',
-    '2026-world-cup':            './collections.html?collection=2026-world-cup',
-    'ac-milan-jerseys':          './collections.html?collection=ac-milan-jerseys',
-    'argentina-jerseys':         './collections.html?collection=argentina-jerseys',
-    'fc-barcelona-jerseys':      './collections.html?collection=fc-barcelona-jerseys',
-    'germany-jerseys':           './collections.html?collection=germany-jerseys',
-    'manchester-united-jerseys': './collections.html?collection=manchester-united-jerseys',
-    'real-madrid-jerseys':       './collections.html?collection=real-madrid-jerseys',
-    'f1-jerseys':                './collections.html?collection=f1-jerseys',
+    '':                          './collection.html',
+    'full-sleeves-jerseys':      './collection.html?store=jerseycrest&collection=full-sleeves-jerseys',
+    'half-sleeve-jerseys':       './collection.html?store=jerseycrest&collection=half-sleeve-jerseys',
+    'retro-jerseys':             './collection.html?store=jerseycrest&collection=retro-jerseys',
+    'best-sellers':              './collection.html?store=jerseycrest&collection=best-sellers',
+    'special-edition':           './collection.html?store=jerseycrest&collection=special-edition',
+    '2026-world-cup':            './collection.html?store=jerseycrest&collection=2026-world-cup',
+    'ac-milan-jerseys':          './collection.html?store=jerseycrest&collection=ac-milan-jerseys',
+    'argentina-jerseys':         './collection.html?store=jerseycrest&collection=argentina-jerseys',
+    'fc-barcelona-jerseys':      './collection.html?store=jerseycrest&collection=fc-barcelona-jerseys',
+    'germany-jerseys':           './collection.html?store=jerseycrest&collection=germany-jerseys',
+    'manchester-united-jerseys': './collection.html?store=jerseycrest&collection=manchester-united-jerseys',
+    'real-madrid-jerseys':       './collection.html?store=jerseycrest&collection=real-madrid-jerseys',
+    'f1-jerseys':                './collection.html?store=jerseycrest&collection=f1-jerseys',
   };
 
     if (localMap[colSlug]) {
       window.location.href = localMap[colSlug];
     } else {
       // club or category collection — filter page
-      window.location.href = `./collections.html?collection=${colSlug}`;
+      window.location.href = `./collection.html?store=jerseycrest&collection=${colSlug}`;
     }
     return;
   }
