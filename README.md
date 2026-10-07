@@ -21,7 +21,7 @@
 
 <br/>
 
-**[🌐 Visit the Store](https://adhleyrr.github.io/)** &nbsp;•&nbsp; **[✨ Features](#-features)** &nbsp;•&nbsp; **[🚀 Quick Start](#-quick-start)** &nbsp;•&nbsp; **[🧩 How It Works](#-how-it-works)** &nbsp;•&nbsp; **[🛠 Customise](#-customise)**
+**[🌐 Visit the Store](https://padhleyrr.github.io/)** &nbsp;•&nbsp; **[✨ Features](#-features)** &nbsp;•&nbsp; **[🚀 Quick Start](#-quick-start)** &nbsp;•&nbsp; **[🧩 How It Works](#-how-it-works)** &nbsp;•&nbsp; **[🛠 Customise](#-customise)**
 
 </div>
 
