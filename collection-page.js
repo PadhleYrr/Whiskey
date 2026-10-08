@@ -74,8 +74,8 @@
       '.cp-card .cp-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:13px;color:#999;text-align:center;padding:8px}' +
       '.cp-card .cp-content{padding:8px 4px;text-align:center}' +
       '.cp-card .cp-title{font-size:.75rem;letter-spacing:.05em;text-transform:uppercase;font-weight:700;line-height:1.3;overflow-wrap:anywhere}' +
-      '.cp-card .cp-count{font-size:.65rem;font-weight:500;vertical-align:super;margin-left:3px}' +
-      '.cp-card .cp-store{display:block;font-size:.6rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}';
+      '.cp-card .cp-count{font-size:.65rem;font-weight:500;vertical-align:super;margin-left:3px}';
+
     document.head.appendChild(st);
   }
 
@@ -88,7 +88,6 @@
       '<div class="cp-media">' + media + '</div>' +
       '<div class="cp-content"><span class="cp-title">' + esc(c.title) +
         (c.count ? '<small class="cp-count">' + c.count + '</small>' : '') + '</span>' +
-        (c.store !== 'jerseycrest' ? '<span class="cp-store">' + STORES[c.store].label + '</span>' : '') +
       '</div></a>';
   }
 
